@@ -192,9 +192,9 @@ export default function AppShell({
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-8">
+      <div className="flex-1 flex flex-col min-w-0 pb-24 sm:pb-28 lg:pb-8">
         {/* Mobile / Tablet Top Bar */}
-        <header className="sticky top-0 z-30 bg-white border-b border-slate-200/80 shadow-xs">
+        <header className="sticky top-0 z-30 bg-white border-b border-slate-200/80 shadow-xs safe-top-inset">
           <div className="px-4 py-2.5 flex items-center justify-between gap-3 max-w-4xl mx-auto">
             {/* Left: Group Brand */}
             <div className="flex items-center gap-2.5 min-w-0">
@@ -234,29 +234,32 @@ export default function AppShell({
                 </button>
 
                 {showLangMenu && (
-                  <div className="absolute right-0 top-10 w-36 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50">
-                    {LANGUAGES.map((l) => (
-                      <button
-                        key={l.code}
-                        type="button"
-                        onClick={() => handleSelectLanguage(l.code)}
-                        className={`w-full px-3 py-2 text-left text-xs font-bold flex items-center justify-between hover:bg-slate-50 ${
-                          currentLangCode === l.code ? 'text-[#165A3E] bg-emerald-50' : 'text-slate-700'
-                        }`}
-                      >
-                        <span>{l.label}</span>
-                        {currentLangCode === l.code && <Check className="w-3.5 h-3.5 text-[#165A3E]" />}
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowLangMenu(false)} />
+                    <div className="absolute right-0 top-10 w-36 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50">
+                      {LANGUAGES.map((l) => (
+                        <button
+                          key={l.code}
+                          type="button"
+                          onClick={() => handleSelectLanguage(l.code)}
+                          className={`w-full px-3 py-2 text-left text-xs font-bold flex items-center justify-between hover:bg-slate-50 ${
+                            currentLangCode === l.code ? 'text-[#165A3E] bg-emerald-50' : 'text-slate-700'
+                          }`}
+                        >
+                          <span>{l.label}</span>
+                          {currentLangCode === l.code && <Check className="w-3.5 h-3.5 text-[#165A3E]" />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
 
-              {/* Quick Website pill on mobile */}
+              {/* Quick Website pill on mobile (hidden on ultra-small screens to avoid crowding) */}
               <button
                 type="button"
                 onClick={() => handleNavClick('about')}
-                className="h-8 px-2.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-[#165A3E] font-bold text-xs border border-emerald-200 transition-all flex items-center gap-1"
+                className="hidden sm:flex h-8 px-2.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-[#165A3E] font-bold text-xs border border-emerald-200 transition-all items-center gap-1"
                 title="Project Website"
               >
                 <span>About</span>
@@ -282,7 +285,7 @@ export default function AppShell({
       </div>
 
       {/* Mobile Bottom Navigation Bar (< 1024px) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200/90 shadow-[0_-2px_10px_rgba(0,0,0,0.04)] px-2 py-1 safe-bottom">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200/90 shadow-[0_-2px_10px_rgba(0,0,0,0.04)] px-2 pt-1 pb-2 safe-bottom-inset">
         <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
           {navItems.map((item) => {
             const Icon = item.icon;

@@ -15,9 +15,18 @@ body {
   background-color: #F8F9FA;
   color: #0F172A;
   overflow-x: hidden;
+  overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   font-family: 'Noto Sans', 'Noto Sans Devanagari', system-ui, -apple-system, sans-serif;
+}
+
+/* Safe area padding utilities for mobile insets */
+.safe-top-inset {
+  padding-top: max(env(safe-area-inset-top, 0px), 0px);
+}
+.safe-bottom-inset {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
 }
 
 /* Ol Chiki font class */

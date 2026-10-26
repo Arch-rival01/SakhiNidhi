@@ -524,7 +524,7 @@ export default function Meeting({ group, onFinish }) {
             initial={{ y: 200, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 200, opacity: 0 }}
-            className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl border-t sm:border-2 border-slate-200"
+            className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-8 safe-bottom-inset shadow-2xl border-t sm:border-2 border-slate-200"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
