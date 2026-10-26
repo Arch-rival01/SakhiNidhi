@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'icons/*.svg', 'downloads/*'],
+      includeAssets: ['favicon.ico', 'icons/*.svg'],
       manifest: {
         name: 'SakhiNidhi - SHG Micro-Accounting',
         short_name: 'SakhiNidhi',
@@ -34,7 +34,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,apk}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
+        globIgnores: ['**/downloads/**', '**/*.apk'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

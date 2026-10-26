@@ -5,8 +5,13 @@ import { showToast } from '../components/Toast';
 
 export default function LandingPage({ onDownload, onOpenBankSecret, onPreviewApp }) {
   const handleDirectApkDownload = () => {
-    showToast('Android APK पैकेज डाउनलोड हो रहा है...', 'success');
-    window.location.href = 'https://github.com/Arch-rival01/SakhiNidhi/releases/download/latest/SakhiNidhi.apk';
+    showToast('Android APK (4.7 MB) डाउनलोड हो रहा है...', 'success');
+    const link = document.createElement('a');
+    link.href = '/downloads/SakhiNidhi.apk';
+    link.download = 'SakhiNidhi.apk';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const scrollToAbout = () => {
@@ -239,8 +244,18 @@ export default function LandingPage({ onDownload, onOpenBankSecret, onPreviewApp
                   className="px-6 py-3 rounded-xl bg-[#165A3E] hover:bg-[#124933] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-xs active:scale-95 transition-all w-full md:w-auto"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Download APK (sakhinidhi.apk)</span>
+                  <span>Download APK (4.7 MB)</span>
                 </button>
+                <div className="pt-2">
+                  <a
+                    href="https://github.com/Arch-rival01/SakhiNidhi/releases/download/latest/SakhiNidhi.apk"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-slate-500 hover:text-[#165A3E] underline"
+                  >
+                    Mirror: Download from GitHub Releases
+                  </a>
+                </div>
               </div>
             </div>
 
