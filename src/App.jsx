@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import LandingPage from './pages/LandingPage';
 import DownloadPage from './pages/Download';
 import BankDashboard from './pages/BankDashboard';
@@ -19,6 +20,7 @@ export default function App() {
   // Detect standalone APK / WebView mode or specific route
   useEffect(() => {
     const isStandalone = typeof window !== 'undefined' && (
+      Capacitor.isNativePlatform() ||
       window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true ||
       document.referrer.includes('android-app://')
