@@ -33,7 +33,7 @@ export default function DownloadPage() {
 
     // Primary download from Vercel static asset
     const link = document.createElement('a');
-    link.href = '/downloads/SakhiNidhi.apk';
+    link.href = '/downloads/sakhinidhi.apk';
     link.download = 'SakhiNidhi.apk';
     document.body.appendChild(link);
     link.click();

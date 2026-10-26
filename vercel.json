@@ -9,6 +9,10 @@
       }
     },
     {
+      "src": "/downloads/SakhiNidhi.apk",
+      "dest": "/downloads/sakhinidhi.apk"
+    },
+    {
       "handle": "filesystem"
     },
     {
