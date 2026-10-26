@@ -108,14 +108,14 @@ export default function DownloadPage() {
 
         {/* Action Buttons */}
         <div className="w-full max-w-sm space-y-2.5">
-          <button
-            type="button"
-            onClick={handleDownloadApk}
+          <a
+            href="/downloads/sakhinidhi.apk"
+            download="SakhiNidhi.apk"
             className="w-full min-h-[52px] px-5 py-3 rounded-2xl bg-[#E8892B] hover:bg-[#d97706] text-white font-black text-base flex items-center justify-center gap-2.5 shadow-md active:scale-97 transition-all cursor-pointer"
           >
             <Download className="w-5 h-5 stroke-[2.5]" />
-            <span>{t('download.download_button')} (4.7 MB)</span>
-          </button>
+            <span>{t('download.download_button')} (9 MB)</span>
+          </a>
 
           <button
             type="button"

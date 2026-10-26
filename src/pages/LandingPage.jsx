@@ -100,14 +100,14 @@ export default function LandingPage({ onDownload, onOpenBankSecret, onPreviewApp
               <span>Launch Web App</span>
             </button>
 
-            <button
-              type="button"
-              onClick={handleDirectApkDownload}
+            <a
+              href="/downloads/sakhinidhi.apk"
+              download="SakhiNidhi.apk"
               className="h-9 sm:h-10 px-4 sm:px-5 rounded-xl bg-[#165A3E] hover:bg-[#124933] text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
             >
               <Download className="w-4 h-4 stroke-[2.4]" />
               <span>Download APK</span>
-            </button>
+            </a>
           </div>
         </div>
       </nav>
@@ -138,14 +138,14 @@ export default function LandingPage({ onDownload, onOpenBankSecret, onPreviewApp
 
             {/* CTAs */}
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3.5 pt-2">
-              <button
-                type="button"
-                onClick={handleDirectApkDownload}
+              <a
+                href="/downloads/sakhinidhi.apk"
+                download="SakhiNidhi.apk"
                 className="min-h-[50px] px-6 py-3.5 rounded-2xl bg-[#E8892B] hover:bg-[#d97706] text-white font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-md shadow-amber-900/10 active:scale-97 transition-all cursor-pointer"
               >
                 <Download className="w-5 h-5 stroke-[2.5]" />
-                <span>Download Android APK (4.7 MB)</span>
-              </button>
+                <span>Download Android APK (9 MB)</span>
+              </a>
 
               <button
                 type="button"
@@ -448,14 +448,14 @@ export default function LandingPage({ onDownload, onOpenBankSecret, onPreviewApp
 
               {/* Action Buttons */}
               <div className="flex flex-col items-center gap-2 flex-shrink-0 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={handleDirectApkDownload}
+                <a
+                  href="/downloads/sakhinidhi.apk"
+                  download="SakhiNidhi.apk"
                   className="w-full sm:w-auto min-h-[50px] px-8 py-3.5 rounded-2xl bg-[#165A3E] hover:bg-[#124933] text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
                 >
                   <Download className="w-5 h-5 stroke-[2.4]" />
-                  <span>Download APK (4.7 MB)</span>
-                </button>
+                  <span>Download APK (9 MB)</span>
+                </a>
 
                 <a
                   href="https://github.com/Arch-rival01/SakhiNidhi/releases/download/latest/SakhiNidhi.apk"
