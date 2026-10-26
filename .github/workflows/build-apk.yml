@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build SakhiNidhi Android APK
@@ -43,10 +46,23 @@ jobs:
           cd android
           ./gradlew assembleDebug --no-daemon --stacktrace
 
+      - name: Prepare Direct APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk SakhiNidhi.apk
+
       - name: Upload APK to GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: SakhiNidhi-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: SakhiNidhi.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish Direct APK to GitHub Releases (No Zip)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "SakhiNidhi Android App (Latest Direct APK)"
+          body: "Direct installable APK for Android. Download SakhiNidhi.apk directly to your phone without extracting any zip."
+          files: SakhiNidhi.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

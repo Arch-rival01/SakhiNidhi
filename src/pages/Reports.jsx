@@ -9,7 +9,7 @@ import { calculateFundBalance } from '../lib/finance';
 import { calculateGroupCreditScore } from '../lib/score';
 import { generateMemberPassbookPdf, generateCashBookPdf, generateLoanRegisterPdf, generateAttendanceRegisterPdf } from '../lib/pdf';
 import { showToast } from '../components/Toast';
-import { triggerHaptic } from '../lib/voice';
+import { triggerHaptic, playChime } from '../lib/voice';
 
 export default function Reports({ group, onNavigate }) {
   const { t } = useTranslation();
@@ -61,6 +61,7 @@ export default function Reports({ group, onNavigate }) {
   }, [group]);
 
   const handleDownloadPassbook = () => {
+    playChime('cash');
     triggerHaptic('success');
     const member = members.find(m => m.id === Number(selectedMemberId));
     const mSavings = allData.savings.filter(s => s.memberId === Number(selectedMemberId));
@@ -72,10 +73,11 @@ export default function Reports({ group, onNavigate }) {
       savings: mSavings,
       repayments: mRepayments
     });
-    showToast('पासबुक PDF डाउनलोड हो गया', 'success');
+    showToast(`${t('reports.passbook')} PDF ${t('common.done')}`, 'success');
   };
 
   const handleDownloadCashBook = () => {
+    playChime('cash');
     triggerHaptic('success');
     const summary = calculateFundBalance(allData);
     generateCashBookPdf({
@@ -85,20 +87,22 @@ export default function Reports({ group, onNavigate }) {
       loans: allData.loans,
       summary
     });
-    showToast('रोकड़ बही PDF डाउनलोड हो गया', 'success');
+    showToast(`${t('reports.cash_book_name')} PDF ${t('common.done')}`, 'success');
   };
 
   const handleDownloadLoanRegister = () => {
+    playChime('cash');
     triggerHaptic('success');
     generateLoanRegisterPdf({
       group,
       loans: allData.loans,
       members
     });
-    showToast('ऋण पंजिका PDF डाउनलोड हो गया', 'success');
+    showToast(`${t('reports.loan_reg_name')} PDF ${t('common.done')}`, 'success');
   };
 
   const handleDownloadAttendance = () => {
+    playChime('cash');
     triggerHaptic('success');
     generateAttendanceRegisterPdf({
       group,
@@ -106,7 +110,7 @@ export default function Reports({ group, onNavigate }) {
       meetings: allData.meetings,
       attendance: allData.attendance
     });
-    showToast('उपस्थिति पंजिका PDF डाउनलोड हो गया', 'success');
+    showToast(`${t('reports.att_reg_name')} PDF ${t('common.done')}`, 'success');
   };
 
   return (
@@ -115,7 +119,7 @@ export default function Reports({ group, onNavigate }) {
       {scoreData && <CreditGauge scoreData={scoreData} />}
 
       {/* 2. PDF Reports */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-4">
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs space-y-4">
         <div className="flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-[#165A3E]" />
           <h3 className="font-extrabold text-base text-slate-800">
@@ -147,7 +151,7 @@ export default function Reports({ group, onNavigate }) {
               className="min-h-[42px] px-4 rounded-lg bg-[#165A3E] hover:bg-[#124933] text-white font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>डाउनलोड</span>
+              <span>{t('reports.download')}</span>
             </button>
           </div>
         </div>
@@ -158,15 +162,15 @@ export default function Reports({ group, onNavigate }) {
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
             <div className="mb-2">
               <FileText className="w-5 h-5 text-[#165A3E] mb-1" />
-              <div className="font-bold text-xs text-slate-800 leading-snug">रोकड़ बही (Cash Book)</div>
-              <div className="text-[10px] text-slate-500">जमा-खर्च हिसाब</div>
+              <div className="font-bold text-xs text-slate-800 leading-snug">{t('reports.cash_book_name')}</div>
+              <div className="text-[10px] text-slate-500">{t('reports.cash_book_desc')}</div>
             </div>
             <button
               type="button"
               onClick={handleDownloadCashBook}
-              className="w-full py-1.5 rounded-lg bg-white hover:bg-slate-100 text-[#165A3E] border border-slate-200 font-bold text-xs flex items-center justify-center gap-1"
+              className="w-full py-2 rounded-lg bg-white hover:bg-slate-100 text-[#165A3E] border border-slate-200 font-bold text-xs flex items-center justify-center gap-1 active:scale-95 transition-all"
             >
-              <Download className="w-3 h-3" />
+              <Download className="w-3.5 h-3.5" />
               <span>PDF</span>
             </button>
           </div>
@@ -175,15 +179,15 @@ export default function Reports({ group, onNavigate }) {
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
             <div className="mb-2">
               <Landmark className="w-5 h-5 text-[#E8892B] mb-1" />
-              <div className="font-bold text-xs text-slate-800 leading-snug">ऋण पंजिका (Loan)</div>
-              <div className="text-[10px] text-slate-500">ऋण व किस्त स्थिति</div>
+              <div className="font-bold text-xs text-slate-800 leading-snug">{t('reports.loan_reg_name')}</div>
+              <div className="text-[10px] text-slate-500">{t('reports.loan_reg_desc')}</div>
             </div>
             <button
               type="button"
               onClick={handleDownloadLoanRegister}
-              className="w-full py-1.5 rounded-lg bg-white hover:bg-slate-100 text-[#E8892B] border border-slate-200 font-bold text-xs flex items-center justify-center gap-1"
+              className="w-full py-2 rounded-lg bg-white hover:bg-slate-100 text-[#E8892B] border border-slate-200 font-bold text-xs flex items-center justify-center gap-1 active:scale-95 transition-all"
             >
-              <Download className="w-3 h-3" />
+              <Download className="w-3.5 h-3.5" />
               <span>PDF</span>
             </button>
           </div>
@@ -192,15 +196,15 @@ export default function Reports({ group, onNavigate }) {
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
             <div className="mb-2">
               <Calendar className="w-5 h-5 text-blue-600 mb-1" />
-              <div className="font-bold text-xs text-slate-800 leading-snug">उपस्थिति (Attendance)</div>
-              <div className="text-[10px] text-slate-500">साप्ताहिक हाजिरी</div>
+              <div className="font-bold text-xs text-slate-800 leading-snug">{t('reports.att_reg_name')}</div>
+              <div className="text-[10px] text-slate-500">{t('reports.att_reg_desc')}</div>
             </div>
             <button
               type="button"
               onClick={handleDownloadAttendance}
-              className="w-full py-1.5 rounded-lg bg-white hover:bg-slate-100 text-blue-700 border border-slate-200 font-bold text-xs flex items-center justify-center gap-1"
+              className="w-full py-2 rounded-lg bg-white hover:bg-slate-100 text-blue-700 border border-slate-200 font-bold text-xs flex items-center justify-center gap-1 active:scale-95 transition-all"
             >
-              <Download className="w-3 h-3" />
+              <Download className="w-3.5 h-3.5" />
               <span>PDF</span>
             </button>
           </div>
@@ -221,19 +225,19 @@ export default function Reports({ group, onNavigate }) {
             <span>Bank Officer Scan</span>
           </div>
           <h4 className="font-bold text-sm text-slate-800">
-            बैंक अधिकारी सीधे लैपटॉप पर देखें
+            {t('reports.bank_officer_title')}
           </h4>
           <p className="text-xs text-slate-500 leading-relaxed">
-            बैंक प्रबंधक यह QR कोड स्कैन करके लैपटॉप पर समूह का पूरा ऑडिटेड रिकॉर्ड देख सकते हैं।
+            {t('reports.bank_officer_desc')}
           </p>
           <div className="pt-1">
             <button
               type="button"
-              onClick={() => onNavigate && onNavigate('bank')}
-              className="px-3.5 py-1.5 rounded-lg bg-[#165A3E] hover:bg-[#124933] text-white font-bold text-xs inline-flex items-center gap-1.5"
+              onClick={() => { playChime('tap'); if (onNavigate) onNavigate('bank'); }}
+              className="px-3.5 py-1.5 rounded-lg bg-[#165A3E] hover:bg-[#124933] text-white font-bold text-xs inline-flex items-center gap-1.5 active:scale-95 transition-all"
             >
               <Landmark className="w-3.5 h-3.5" />
-              <span>डैशबोर्ड खोलें</span>
+              <span>{t('reports.open_dashboard')}</span>
             </button>
           </div>
         </div>

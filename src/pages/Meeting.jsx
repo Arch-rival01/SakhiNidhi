@@ -11,7 +11,7 @@ import TripleConfirmationModal from '../components/TripleConfirmationModal';
 import { db, logAudit } from '../lib/db';
 import { calculateLoanEligibility, splitRepayment, calculateMonthlyInterest } from '../lib/finance';
 import { showToast } from '../components/Toast';
-import { triggerHaptic, speak } from '../lib/voice';
+import { triggerHaptic, speak, playChime } from '../lib/voice';
 import confetti from 'canvas-confetti';
 
 export default function Meeting({ group, onFinish }) {
@@ -30,11 +30,8 @@ export default function Meeting({ group, onFinish }) {
   // Repayments state: { loanId: amount }
   const [repaymentsMap, setRepaymentsMap] = useState({});
 
-  // New Loans given this meeting: [{ memberId, principal, purpose, tenureMonths, interestRate }]
-  const [newLoansList, setNewLoansList] = useState([]);
-
   // Active Keypad modal
-  const [keypadConfig, setKeypadConfig] = useState(null); // { type: 'saving'|'repay'|'newLoan', member, loan, currentAmount }
+  const [keypadConfig, setKeypadConfig] = useState(null);
   const [keypadAmount, setKeypadAmount] = useState('');
 
   // Triple confirmation popup
@@ -52,12 +49,10 @@ export default function Meeting({ group, onFinish }) {
       setMembers(allMembers);
       setActiveLoans(allLoans);
 
-      // Default attendance to present for convenience
       const initialAtt = {};
       const initialSav = {};
       allMembers.forEach(m => {
         initialAtt[m.id] = 'present';
-        // default weekly saving
         initialSav[m.id] = group?.weeklySaving || 100;
       });
       setAttendanceMap(initialAtt);
@@ -71,21 +66,24 @@ export default function Meeting({ group, onFinish }) {
     setAttendanceMap(prev => {
       const current = prev[memberId];
       const next = current === 'present' ? 'absent' : 'present';
+      playChime(next === 'present' ? 'tap' : 'tap');
       triggerHaptic('tap');
       return { ...prev, [memberId]: next };
     });
   };
 
   const handleMarkAllPresent = () => {
+    playChime('success');
     triggerHaptic('tap');
     const all = {};
     members.forEach(m => { all[m.id] = 'present'; });
     setAttendanceMap(all);
-    showToast('सभी सदस्य उपस्थित दर्ज किए गए', 'info');
+    showToast(t('meeting.mark_all_present'), 'info');
   };
 
   // Step 2: Open keypad for saving
   const handleOpenSavingKeypad = (member) => {
+    playChime('tap');
     setKeypadConfig({
       type: 'saving',
       member,
@@ -99,19 +97,24 @@ export default function Meeting({ group, onFinish }) {
     setSavingsMap(prev => ({ ...prev, [member.id]: amt }));
     setKeypadConfig(null);
 
-    // Trigger triple confirmation
+    const lang = i18n.language || 'hi';
+    const spoken = lang === 'en'
+      ? `${member.name}, savings ${amt} rupees recorded`
+      : `${member.name}, बचत ${amt} रुपये जमा हुए`;
+
     setTripleModal({
       isOpen: true,
       type: 'success',
       title: `${member.name}`,
-      spokenMessage: `${member.name}, बचत ${amt} रुपये जमा हुए`,
-      details: 'साप्ताहिक बचत सफलता से दर्ज हुई',
+      spokenMessage: spoken,
+      details: `${t('meeting.step_savings')}: ₹${amt}`,
       amount: amt
     });
   };
 
   // Step 3: Open keypad for loan repayment
   const handleOpenRepayKeypad = (loan, member) => {
+    playChime('tap');
     const monthlyInt = calculateMonthlyInterest(loan.principal, loan.interestRate || 2);
     const suggestedEmi = Math.round(loan.principal / (loan.tenureMonths || 4)) + monthlyInt;
 
@@ -119,6 +122,7 @@ export default function Meeting({ group, onFinish }) {
       type: 'repay',
       loan,
       member,
+      suggestedEmi,
       currentAmount: String(suggestedEmi)
     });
     setKeypadAmount(String(suggestedEmi));
@@ -134,68 +138,78 @@ export default function Meeting({ group, onFinish }) {
       [loan.id]: {
         amount: amt,
         memberId: member.id,
-        ...split
+        principalPaid: split.principalPaid,
+        interestPaid: split.interestPaid,
+        finePaid: split.finePaid,
+        remainingPrincipal: split.remainingPrincipal
       }
     }));
     setKeypadConfig(null);
 
+    const lang = i18n.language || 'hi';
+    const spoken = lang === 'en'
+      ? `${member.name}, loan repayment ${amt} rupees recorded`
+      : `${member.name}, किस्त ${amt} रुपये जमा हुई`;
+
     setTripleModal({
       isOpen: true,
       type: 'success',
-      title: `${member.name} (किस्त)`,
-      spokenMessage: `${member.name}, ऋण किस्त ${amt} रुपये जमा`,
-      details: `मूलधन: ₹${split.principalPaid} • ब्याज: ₹${split.interestPaid}`,
+      title: `${member.name}`,
+      spokenMessage: spoken,
+      details: `${t('loans.balance_principal')}: ₹${split.principalPaid} • ${t('loans.monthly_interest')}: ₹${split.interestPaid}`,
       amount: amt
     });
   };
 
-  // Step 5: Finish & Lock Meeting
+  // Final Action: End & Lock Meeting
   const handleLockMeeting = async () => {
+    setShowLockDialog(false);
+    triggerHaptic('success');
+    playChime('success');
+
     try {
-      setShowLockDialog(false);
-      triggerHaptic('success');
-
       const todayStr = new Date().toISOString().split('T')[0];
-      const count = await db.meetings.count();
-      const meetingNumber = count + 1;
+      const existingMeetings = await db.meetings.toArray();
+      const meetingNumber = existingMeetings.length + 1;
 
-      // 1. Create Meeting
+      // 1. Create meeting entry
       const meetingId = await db.meetings.add({
         groupId: group?.id || 1,
         meetingNumber,
         meetingDate: todayStr,
-        notes: `साप्ताहिक बैठक #${meetingNumber}`,
-        locked: true,
-        createdAt: new Date().toISOString(),
+        isLocked: true,
+        lockedAt: new Date().toISOString(),
         synced: false
       });
 
       // 2. Save Attendance
-      for (const [memberId, status] of Object.entries(attendanceMap)) {
-        await db.attendance.add({
+      const attPromises = Object.entries(attendanceMap).map(([mId, status]) =>
+        db.attendance.add({
           meetingId,
-          memberId: Number(memberId),
+          memberId: Number(mId),
           status,
+          date: todayStr,
           synced: false
-        });
-      }
+        })
+      );
+      await Promise.all(attPromises);
 
-      // 3. Save Savings (for present members with >0 savings)
-      for (const [memberId, amt] of Object.entries(savingsMap)) {
-        if (attendanceMap[memberId] === 'present' && Number(amt) > 0) {
-          await db.savings.add({
-            groupId: group?.id || 1,
+      // 3. Save Savings
+      const savPromises = Object.entries(savingsMap)
+        .filter(([mId]) => attendanceMap[mId] === 'present')
+        .map(([mId, amt]) =>
+          db.savings.add({
             meetingId,
-            memberId: Number(memberId),
+            memberId: Number(mId),
             amount: Number(amt),
             date: todayStr,
             reversed: false,
             synced: false
-          });
-        }
-      }
+          })
+        );
+      await Promise.all(savPromises);
 
-      // 4. Save Repayments
+      // 4. Save Repayments & update active loans
       for (const [loanId, repayData] of Object.entries(repaymentsMap)) {
         await db.repayments.add({
           loanId: Number(loanId),
@@ -210,39 +224,29 @@ export default function Meeting({ group, onFinish }) {
           synced: false
         });
 
-        // Update loan status if fully paid
         if (repayData.remainingPrincipal <= 0) {
           await db.loans.update(Number(loanId), { status: 'paid' });
         }
       }
 
-      // 5. Audit Log
       await logAudit(group?.id || 1, 'LOCK_MEETING', 'meetings', meetingId, {
         meetingNumber,
         totalSavingsToday: Object.values(savingsMap).reduce((a, b) => a + Number(b), 0),
         totalRepaymentsToday: Object.values(repaymentsMap).reduce((a, b) => a + Number(b.amount), 0)
       });
 
-      // Celebration
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-
-      showToast('बैठक सफलता से लॉक हो गई!', 'success');
-      speak(`बैठक संख्या ${meetingNumber} सफलतापूर्वक लॉक हो गई है।`);
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      showToast(t('meeting.meeting_completed'), 'success');
 
       setTimeout(() => {
         if (onFinish) onFinish();
       }, 1200);
     } catch (err) {
       console.error(err);
-      showToast('बैठक सहेजने में त्रुटि', 'error');
+      showToast('Error saving meeting', 'error');
     }
   };
 
-  // Calculations for Step 5
   const presentCount = Object.values(attendanceMap).filter(s => s === 'present').length;
   const totalSavingsToday = Object.entries(savingsMap)
     .filter(([mId]) => attendanceMap[mId] === 'present')
@@ -251,14 +255,18 @@ export default function Meeting({ group, onFinish }) {
   const totalRepaymentsToday = Object.values(repaymentsMap)
     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
-  const summarySpeechText = `बैठक सारांश: आज ${presentCount} सदस्य उपस्थित हैं। कुल बचत ${totalSavingsToday} रुपये और ऋण वापसी ${totalRepaymentsToday} रुपये जमा हुई।`;
+  const goToStep = (step) => {
+    playChime('tap');
+    triggerHaptic('tap');
+    setCurrentStep(step);
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-2xl mx-auto">
       {/* Step Indicator Bar */}
       <StepBar
         currentStep={currentStep}
-        onStepClick={(stepId) => setCurrentStep(stepId)}
+        onStepClick={(stepId) => goToStep(stepId)}
       />
 
       {/* STEP 1: ATTENDANCE */}
@@ -266,26 +274,26 @@ export default function Meeting({ group, onFinish }) {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-2xl text-slate-800">
+              <h3 className="font-extrabold text-xl sm:text-2xl text-slate-800">
                 1. {t('meeting.step_attendance')}
               </h3>
-              <p className="text-sm font-semibold text-slate-500">
-                उपस्थित सदस्य पर टैप करें (हरा = उपस्थित, लाल = अनुपस्थित)
+              <p className="text-xs sm:text-sm font-semibold text-slate-500">
+                {t('meeting.attendance_hint')}
               </p>
             </div>
             <button
               type="button"
               onClick={handleMarkAllPresent}
-              className="text-xs font-bold text-[#1B6B4A] bg-[#1B6B4A]/10 px-3 py-1.5 rounded-full hover:bg-[#1B6B4A]/20"
+              className="text-xs font-bold text-[#165A3E] bg-[#165A3E]/10 px-3 py-1.5 rounded-full hover:bg-[#165A3E]/20 flex-shrink-0"
             >
-              सभी उपस्थित
+              {t('meeting.mark_all_present')}
             </button>
           </div>
 
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center justify-between">
-            <span className="font-bold text-emerald-900 text-sm">कुल उपस्थिति:</span>
-            <span className="font-extrabold text-emerald-800 text-lg">
-              {presentCount} / {members.length} सदस्य
+            <span className="font-bold text-emerald-900 text-xs sm:text-sm">{t('meeting.total_attendance')}:</span>
+            <span className="font-extrabold text-emerald-800 text-base sm:text-lg">
+              {presentCount} / {members.length} {t('meeting.members_count')}
             </span>
           </div>
 
@@ -303,9 +311,9 @@ export default function Meeting({ group, onFinish }) {
             ))}
           </div>
 
-          <div className="pt-4">
-            <BigButton onClick={() => setCurrentStep(2)} icon={ArrowRight}>
-              बचत दर्ज करें (Next: Savings)
+          <div className="pt-2">
+            <BigButton onClick={() => goToStep(2)} icon={ArrowRight}>
+              {t('meeting.next_savings')}
             </BigButton>
           </div>
         </motion.div>
@@ -316,20 +324,20 @@ export default function Meeting({ group, onFinish }) {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-2xl text-slate-800">
+              <h3 className="font-extrabold text-xl sm:text-2xl text-slate-800">
                 2. {t('meeting.step_savings')}
               </h3>
-              <p className="text-sm font-semibold text-slate-500">
-                बचत राशि बदलने या पुष्टि के लिए सदस्य पर टैप करें
+              <p className="text-xs sm:text-sm font-semibold text-slate-500">
+                {t('meeting.savings_hint')}
               </p>
             </div>
-            <div className="text-right">
-              <span className="text-xs font-bold text-slate-500">कुल जमा</span>
+            <div className="text-right flex-shrink-0">
+              <span className="text-xs font-bold text-slate-500">{t('meeting.total_saved')}</span>
               <div className="text-xl font-black text-emerald-800">₹{totalSavingsToday}</div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
             {members.map((m) => {
               const isPresent = attendanceMap[m.id] === 'present';
               const amt = isPresent ? savingsMap[m.id] : 0;
@@ -348,12 +356,12 @@ export default function Meeting({ group, onFinish }) {
             })}
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <BigButton onClick={() => setCurrentStep(1)} variant="secondary" fullWidth={false} className="w-1/3" icon={ArrowLeft}>
+          <div className="flex gap-2.5 pt-2">
+            <BigButton onClick={() => goToStep(1)} variant="secondary" fullWidth={false} className="w-1/3" icon={ArrowLeft}>
               {t('common.back')}
             </BigButton>
-            <BigButton onClick={() => setCurrentStep(3)} icon={ArrowRight} className="flex-1">
-              ऋण किस्त देखें (Next: Repayments)
+            <BigButton onClick={() => goToStep(3)} icon={ArrowRight} className="flex-1">
+              {t('meeting.next_repayments')}
             </BigButton>
           </div>
         </motion.div>
@@ -364,25 +372,25 @@ export default function Meeting({ group, onFinish }) {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-2xl text-slate-800">
+              <h3 className="font-extrabold text-xl sm:text-2xl text-slate-800">
                 3. {t('meeting.step_repayments')}
               </h3>
-              <p className="text-sm font-semibold text-slate-500">
-                सक्रिय ऋण धारक सदस्यों की किस्त जमा करें
+              <p className="text-xs sm:text-sm font-semibold text-slate-500">
+                {t('meeting.repayments_hint')}
               </p>
             </div>
-            <div className="text-right">
-              <span className="text-xs font-bold text-slate-500">किस्त जमा</span>
-              <div className="text-xl font-black text-[#1B6B4A]">₹{totalRepaymentsToday}</div>
+            <div className="text-right flex-shrink-0">
+              <span className="text-xs font-bold text-slate-500">{t('loans.loan_repayment')}</span>
+              <div className="text-xl font-black text-[#165A3E]">₹{totalRepaymentsToday}</div>
             </div>
           </div>
 
           {activeLoans.length === 0 ? (
-            <div className="p-8 text-center bg-white rounded-3xl border-2 border-slate-200">
-              <p className="font-bold text-slate-500">समूह में अभी कोई सक्रिय ऋण बकाया नहीं है।</p>
+            <div className="p-8 text-center bg-white rounded-3xl border border-slate-200">
+              <p className="font-bold text-slate-500 text-sm">{t('meeting.no_active_loans')}</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {activeLoans.map((loan) => {
                 const borrower = members.find(m => m.id === loan.memberId) || { name: 'सदस्य' };
                 const monthlyInt = calculateMonthlyInterest(loan.principal, loan.interestRate || 2);
@@ -392,7 +400,7 @@ export default function Meeting({ group, onFinish }) {
                 return (
                   <div
                     key={loan.id}
-                    className={`p-4 rounded-3xl border-2 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                       repaymentDone
                         ? 'bg-emerald-50 border-emerald-400'
                         : loan.status === 'overdue'
@@ -402,37 +410,37 @@ export default function Meeting({ group, onFinish }) {
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center font-black text-white text-base shadow"
-                        style={{ backgroundColor: borrower.avatarColor || '#1B6B4A' }}
+                        className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center font-black text-white text-sm shadow-xs flex-shrink-0"
+                        style={{ backgroundColor: borrower.avatarColor || '#165A3E' }}
                       >
                         {borrower.name.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <div className="font-black text-lg text-slate-800">{borrower.name}</div>
-                        <div className="text-xs font-bold text-slate-600">
-                          बकाया मूलधन: ₹{loan.principal} • मासिक ब्याज: ₹{monthlyInt}
+                        <div className="font-black text-base text-slate-800">{borrower.name}</div>
+                        <div className="text-xs font-semibold text-slate-600">
+                          {t('loans.balance_principal')}: ₹{loan.principal} • {t('loans.monthly_interest')}: ₹{monthlyInt}
                         </div>
                         {loan.status === 'overdue' && (
-                          <span className="text-[11px] font-extrabold text-red-700 bg-red-100 px-2 py-0.5 rounded-md inline-block mt-1">
-                            चेतावनी: अतिदेय (Overdue)
+                          <span className="text-[10px] font-extrabold text-red-700 bg-red-100 px-2 py-0.5 rounded-md inline-block mt-1">
+                            {t('loans.overdue_badge')}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
+                    <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
                       {repaymentDone ? (
-                        <div className="flex items-center gap-2 text-emerald-800 font-black">
-                          <Check className="w-5 h-5 text-emerald-600 stroke-[3]" />
-                          <span>₹{repaymentsMap[loan.id].amount} जमा</span>
+                        <div className="flex items-center gap-2 text-emerald-800 font-black text-sm">
+                          <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />
+                          <span>₹{repaymentsMap[loan.id].amount} {t('common.done')}</span>
                         </div>
                       ) : (
                         <button
                           type="button"
                           onClick={() => handleOpenRepayKeypad(loan, borrower)}
-                          className="min-h-[48px] px-5 rounded-2xl bg-[#1B6B4A] hover:bg-[#155339] text-white font-bold text-sm shadow-sm flex items-center gap-2 active:scale-95"
+                          className="min-h-[42px] px-4 rounded-xl bg-[#165A3E] hover:bg-[#124933] text-white font-bold text-xs shadow-xs flex items-center gap-1.5 active:scale-95"
                         >
-                          <span>किस्त लें (₹{suggestedEmi})</span>
+                          <span>{t('meeting.take_emi')} (₹{suggestedEmi})</span>
                         </button>
                       )}
                     </div>
@@ -442,12 +450,12 @@ export default function Meeting({ group, onFinish }) {
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
-            <BigButton onClick={() => setCurrentStep(2)} variant="secondary" fullWidth={false} className="w-1/3" icon={ArrowLeft}>
+          <div className="flex gap-2.5 pt-2">
+            <BigButton onClick={() => goToStep(2)} variant="secondary" fullWidth={false} className="w-1/3" icon={ArrowLeft}>
               {t('common.back')}
             </BigButton>
-            <BigButton onClick={() => setCurrentStep(4)} icon={ArrowRight} className="flex-1">
-              बैठक सारांश (Next: Summary)
+            <BigButton onClick={() => goToStep(4)} icon={ArrowRight} className="flex-1">
+              {t('meeting.next_summary')}
             </BigButton>
           </div>
         </motion.div>
@@ -457,56 +465,62 @@ export default function Meeting({ group, onFinish }) {
       {currentStep === 4 && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-extrabold text-2xl text-slate-800">
+            <h3 className="font-extrabold text-xl sm:text-2xl text-slate-800">
               4. {t('meeting.step_summary')}
             </h3>
             <button
               type="button"
-              onClick={() => speak(summarySpeechText)}
-              className="flex items-center gap-1.5 text-xs font-bold text-[#1B6B4A] bg-[#1B6B4A]/10 px-3 py-1.5 rounded-full"
+              onClick={() => {
+                const lang = i18n.language || 'hi';
+                const text = lang === 'en'
+                  ? `Meeting summary: ${presentCount} members present. Total savings ${totalSavingsToday} rupees, loan repayment ${totalRepaymentsToday} rupees.`
+                  : `बैठक सारांश: आज ${presentCount} सदस्य उपस्थित हैं। कुल बचत ${totalSavingsToday} रुपये और ऋण वापसी ${totalRepaymentsToday} रुपये जमा हुई।`;
+                speak(text, { lang: lang === 'en' ? 'en-IN' : 'hi-IN' });
+              }}
+              className="flex items-center gap-1.5 text-xs font-bold text-[#165A3E] bg-[#165A3E]/10 px-3 py-1.5 rounded-full"
             >
-              <Volume2 className="w-4 h-4" />
-              <span>आवाज में सुनें</span>
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>{t('common.speak')}</span>
             </button>
           </div>
 
           {/* Grand Summary Card */}
-          <div className="bg-white rounded-3xl p-6 border-2 border-[#1B6B4A]/30 shadow-md space-y-4">
+          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#165A3E]/30 shadow-sm space-y-4">
             <div className="grid grid-cols-2 gap-3 pb-4 border-b border-slate-100">
-              <div className="bg-emerald-50 rounded-2xl p-4">
-                <span className="text-xs font-bold text-emerald-800 uppercase">उपस्थिति</span>
-                <div className="text-2xl font-black text-emerald-900 mt-1">
+              <div className="bg-emerald-50 rounded-2xl p-3.5">
+                <span className="text-xs font-bold text-emerald-800 uppercase">{t('meeting.step_attendance')}</span>
+                <div className="text-xl sm:text-2xl font-black text-emerald-900 mt-1">
                   {presentCount} / {members.length}
                 </div>
               </div>
 
-              <div className="bg-amber-50 rounded-2xl p-4">
-                <span className="text-xs font-bold text-amber-800 uppercase">कुल बचत आज</span>
-                <div className="text-2xl font-black text-amber-900 mt-1">
+              <div className="bg-amber-50 rounded-2xl p-3.5">
+                <span className="text-xs font-bold text-amber-800 uppercase">{t('meeting.step_savings')}</span>
+                <div className="text-xl sm:text-2xl font-black text-amber-900 mt-1">
                   ₹{totalSavingsToday}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between py-2">
-              <span className="text-base font-bold text-slate-600">ऋण किस्त वापसी (Repayments):</span>
-              <span className="text-xl font-extrabold text-slate-800">₹{totalRepaymentsToday}</span>
+            <div className="flex items-center justify-between py-1 text-sm sm:text-base">
+              <span className="font-bold text-slate-600">{t('meeting.step_repayments')}:</span>
+              <span className="font-extrabold text-slate-800 text-lg">₹{totalRepaymentsToday}</span>
             </div>
 
-            <div className="flex items-center justify-between py-2 pt-4 border-t-2 border-dashed border-slate-200">
-              <span className="text-lg font-black text-[#1B6B4A]">आज कुल कोष प्राप्ति (Total Inflow):</span>
-              <span className="text-3xl font-black text-[#1B6B4A]">
+            <div className="flex items-center justify-between py-2 pt-3 border-t border-dashed border-slate-200">
+              <span className="text-base sm:text-lg font-black text-[#165A3E]">{t('home.total_savings')}:</span>
+              <span className="text-2xl sm:text-3xl font-black text-[#165A3E]">
                 ₹{totalSavingsToday + totalRepaymentsToday}
               </span>
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <BigButton onClick={() => setCurrentStep(3)} variant="secondary" fullWidth={false} className="w-1/3" icon={ArrowLeft}>
+          <div className="flex gap-2.5 pt-2">
+            <BigButton onClick={() => goToStep(3)} variant="secondary" fullWidth={false} className="w-1/3" icon={ArrowLeft}>
               {t('common.back')}
             </BigButton>
             <BigButton
-              onClick={() => setShowLockDialog(true)}
+              onClick={() => { playChime('tap'); setShowLockDialog(true); }}
               variant="turmeric"
               icon={Lock}
               className="flex-1"
@@ -524,20 +538,20 @@ export default function Meeting({ group, onFinish }) {
             initial={{ y: 200, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 200, opacity: 0 }}
-            className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-8 safe-bottom-inset shadow-2xl border-t sm:border-2 border-slate-200"
+            className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 pb-8 safe-bottom-inset shadow-2xl border-t sm:border-2 border-slate-200"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2.5">
                 <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm"
-                  style={{ backgroundColor: keypadConfig.member?.avatarColor || '#1B6B4A' }}
+                  className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs shadow-xs"
+                  style={{ backgroundColor: keypadConfig.member?.avatarColor || '#165A3E' }}
                 >
                   {keypadConfig.member?.name.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <h4 className="font-black text-xl text-slate-800">{keypadConfig.member?.name}</h4>
+                  <h4 className="font-black text-lg text-slate-800">{keypadConfig.member?.name}</h4>
                   <p className="text-xs font-bold text-slate-500">
-                    {keypadConfig.type === 'saving' ? 'साप्ताहिक बचत राशि' : 'ऋण किस्त जमा'}
+                    {keypadConfig.type === 'saving' ? t('meeting.saving_amount') : t('loans.loan_repayment')}
                   </p>
                 </div>
               </div>
@@ -545,9 +559,9 @@ export default function Meeting({ group, onFinish }) {
               <button
                 type="button"
                 onClick={() => setKeypadConfig(null)}
-                className="text-sm font-bold text-slate-400 hover:text-slate-700 p-2"
+                className="text-xs font-bold text-slate-400 hover:text-slate-700 p-1.5"
               >
-                रद्द करें
+                {t('common.cancel')}
               </button>
             </div>
 
@@ -561,7 +575,7 @@ export default function Meeting({ group, onFinish }) {
                   handleConfirmRepayment(amt);
                 }
               }}
-              confirmLabel="दर्ज करें (Confirm Entry)"
+              confirmLabel={t('common.confirm')}
             />
           </motion.div>
         </div>
@@ -584,12 +598,11 @@ export default function Meeting({ group, onFinish }) {
         title={t('meeting.confirm_lock_title')}
         description={t('meeting.confirm_lock_desc')}
         voicePrompt="क्या आप बैठक समाप्त करके सभी हिसाब लॉक करना चाहती हैं?"
-        confirmText="हाँ, लॉक करें (Lock)"
-        cancelText="नहीं, वापस जाएं"
+        confirmText={t('meeting.end_and_lock')}
+        cancelText={t('common.cancel')}
         onConfirm={handleLockMeeting}
         onCancel={() => setShowLockDialog(false)}
       />
     </div>
   );
 }
-

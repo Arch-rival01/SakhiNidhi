@@ -41,7 +41,16 @@
     "reports_tile": "पासबुक और स्कोर",
     "quick_actions": "त्वरित कार्य",
     "active_members": "कुल सदस्य",
-    "credit_score_badge": "समूह क्रेडिट स्कोर"
+    "credit_score_badge": "समूह क्रेडिट स्कोर",
+    "total_savings": "कुल बचत",
+    "loans_outstanding": "बकाया ऋण",
+    "weekly_meeting": "साप्ताहिक बैठक",
+    "record_savings": "बचत दर्ज करें",
+    "new_loan_emi": "नया ऋण व किस्त",
+    "passbook_score": "पासबुक व स्कोर",
+    "overdue": "अतिदेय",
+    "listen": "सुनें",
+    "sms_link_ready": "SMS लिंक तैयार"
   },
   "meeting": {
     "step_attendance": "उपस्थिति",
@@ -55,7 +64,19 @@
     "end_and_lock": "बैठक समाप्त व लॉक करें",
     "meeting_completed": "बैठक सफलतापूर्वक दर्ज हो गई!",
     "confirm_lock_title": "क्या बैठक लॉक करें?",
-    "confirm_lock_desc": "लॉक करने के बाद बिना ऑडिट कारण के बदलाव नहीं होगा।"
+    "confirm_lock_desc": "लॉक करने के बाद बिना ऑडिट कारण के बदलाव नहीं होगा।",
+    "attendance_hint": "उपस्थित सदस्य पर टैप करें (हरा = उपस्थित, लाल = अनुपस्थित)",
+    "mark_all_present": "सभी उपस्थित",
+    "total_attendance": "कुल उपस्थिति",
+    "members_count": "सदस्य",
+    "next_savings": "बचत दर्ज करें →",
+    "savings_hint": "बचत राशि बदलने या पुष्टि के लिए सदस्य पर टैप करें",
+    "total_saved": "कुल जमा",
+    "next_repayments": "ऋण किस्त देखें →",
+    "repayments_hint": "सक्रिय ऋण धारक सदस्यों की किस्त जमा करें",
+    "no_active_loans": "समूह में अभी कोई सक्रिय ऋण बकाया नहीं है।",
+    "take_emi": "किस्त लें",
+    "next_summary": "बैठक सारांश →"
   },
   "loans": {
     "new_loan": "नया ऋण दें",
@@ -75,7 +96,14 @@
     "eligibility_error": "अपात्र: पुरानी किस्त बाकी है या बचत शून्य है",
     "overdue_badge": "अतिदेय (बाकी)",
     "active_badge": "सक्रिय",
-    "paid_badge": "चुकाया गया"
+    "paid_badge": "चुकाया गया",
+    "active_loans": "सक्रिय ऋण",
+    "give_new_loan": "+ नया ऋण दें",
+    "balance_principal": "बकाया मूलधन",
+    "monthly_interest": "मासिक ब्याज",
+    "due_date": "अंतिम तिथि",
+    "months": "माह",
+    "repay_modal_title": "किस्त जमा करें"
   },
   "score": {
     "title": "समूह क्रेडिट स्कोर",
@@ -98,7 +126,17 @@
     "attendance_register": "उपस्थिति पंजिका",
     "download_pdf": "PDF डाउनलोड",
     "share": "शेयर करें",
-    "bank_qr": "बैंक अधिकारी स्कैन हेतु क्यूआर"
+    "bank_qr": "बैंक अधिकारी स्कैन हेतु क्यूआर",
+    "cash_book_name": "रोकड़ बही (Cash Book)",
+    "cash_book_desc": "जमा-खर्च हिसाब",
+    "loan_reg_name": "ऋण पंजिका (Loan)",
+    "loan_reg_desc": "ऋण व किस्त स्थिति",
+    "att_reg_name": "उपस्थिति (Attendance)",
+    "att_reg_desc": "साप्ताहिक हाजिरी",
+    "bank_officer_title": "बैंक अधिकारी सीधे लैपटॉप पर देखें",
+    "bank_officer_desc": "बैंक प्रबंधक यह QR कोड स्कैन करके लैपटॉप पर समूह का पूरा ऑडिटेड रिकॉर्ड देख सकते हैं।",
+    "open_dashboard": "डैशबोर्ड खोलें",
+    "download": "डाउनलोड"
   },
   "download": {
     "heading": "सखीनिधि Android APK डाउनलोड करें",
@@ -125,4 +163,3 @@
     "card4_desc": "समूह का क्रेडिट स्कोर बनाएं और बैंक से आसानी से बड़ा ऋण पाएं।"
   }
 }
-

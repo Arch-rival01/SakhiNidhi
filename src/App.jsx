@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import LandingPage from './pages/LandingPage';
 import DownloadPage from './pages/Download';
 import BankDashboard from './pages/BankDashboard';
@@ -10,6 +11,7 @@ import Loans from './pages/Loans';
 import Reports from './pages/Reports';
 import { db } from './lib/db';
 import { loadDemoData } from './lib/demoData';
+import { showToast } from './components/Toast';
 
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState('landing'); // 'landing' | 'download' | 'bank' | 'app'
@@ -51,6 +53,56 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Hardware Back Button Handler (Capacitor Android back button & gesture)
+  useEffect(() => {
+    let lastBackTime = 0;
+
+    const backButtonHandler = CapApp.addListener('backButton', ({ canGoBack }) => {
+      // 1. If currently in bank or download page, go back to previous screen
+      if (currentRoute === 'bank' || currentRoute === 'download') {
+        const isStandalone = Capacitor.isNativePlatform() || window.matchMedia('(display-mode: standalone)').matches;
+        navigateTo(isStandalone ? 'app' : 'landing');
+        return;
+      }
+
+      // 2. If in the main App (APK mode)
+      if (currentRoute === 'app') {
+        // If not on 'home' tab, navigate back to 'home' instead of closing!
+        if (appTab !== 'home') {
+          setAppTab('home');
+          return;
+        }
+
+        // If on 'home' tab, require double-press to exit (standard Android pattern)
+        const now = Date.now();
+        if (now - lastBackTime < 2500) {
+          CapApp.exitApp();
+        } else {
+          lastBackTime = now;
+          showToast('बाहर निकलने के लिए दोबारा दबाएं (Press back again to exit)', 'info');
+        }
+        return;
+      }
+
+      // 3. Landing page mode
+      if (canGoBack) {
+        window.history.back();
+      } else {
+        const now = Date.now();
+        if (now - lastBackTime < 2500) {
+          CapApp.exitApp();
+        } else {
+          lastBackTime = now;
+          showToast('बाहर निकलने के लिए दोबारा दबाएं', 'info');
+        }
+      }
+    });
+
+    return () => {
+      backButtonHandler.then(listener => listener.remove()).catch(() => {});
+    };
+  }, [currentRoute, appTab]);
 
   // Initialize DB
   useEffect(() => {
@@ -108,7 +160,7 @@ export default function App() {
     );
   }
 
-  // 2. DOWNLOAD PAGE
+  // 2. DOWNLOAD PAGE (Standalone webpage for downloading APK)
   if (currentRoute === 'download') {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
@@ -136,7 +188,7 @@ export default function App() {
     );
   }
 
-  // 3. ANDROID APK APP UI (Loaded when user installs/opens APK or visits /app)
+  // 3. ANDROID APK APP UI (Loaded when user opens APK or visits /app)
   if (currentRoute === 'app') {
     return (
       <AppShell
@@ -149,7 +201,6 @@ export default function App() {
         {appTab === 'meeting' && <Meeting group={group} onFinish={() => setAppTab('home')} />}
         {appTab === 'loans' && <Loans group={group} />}
         {appTab === 'reports' && <Reports group={group} onNavigate={setAppTab} />}
-        {appTab === 'download' && <DownloadPage />}
       </AppShell>
     );
   }

@@ -10,7 +10,7 @@ import { db, logAudit } from '../lib/db';
 import { calculateLoanEligibility, calculateMonthlyInterest, splitRepayment, calculateLateFine } from '../lib/finance';
 import { sendSmsNotification, formatSmsMessage } from '../lib/sms';
 import { showToast } from '../components/Toast';
-import { triggerHaptic } from '../lib/voice';
+import { triggerHaptic, playChime } from '../lib/voice';
 
 const PURPOSE_OPTIONS = [
   { id: 'farming', labelKey: 'loans.farming', icon: Sprout, color: 'text-emerald-700 bg-emerald-50' },
@@ -85,11 +85,12 @@ export default function Loans({ group }) {
 
   const handleDisburseLoan = async () => {
     if (!selectedBorrower || !eligibility?.isEligible) {
+      playChime('error');
       triggerHaptic('error');
       setTripleModal({
         isOpen: true,
         type: 'error',
-        title: 'ऋण अपात्र',
+        title: t('loans.eligibility_error'),
         spokenMessage: 'यह सदस्य ऋण के लिए पात्र नहीं हैं।',
         details: 'पुरानी किस्त बाकी है अथवा बचत पर्याप्त नहीं है।'
       });
@@ -98,12 +99,14 @@ export default function Loans({ group }) {
 
     const principal = Number(loanAmount) || 0;
     if (principal > eligibility.maxAmount) {
+      playChime('error');
       triggerHaptic('error');
       showToast(`अधिकतम ऋण सीमा ₹${eligibility.maxAmount} है`, 'error');
       return;
     }
 
     try {
+      playChime('cash');
       triggerHaptic('success');
       const now = new Date();
       const dueDate = new Date(now);
@@ -130,12 +133,17 @@ export default function Loans({ group }) {
         purpose: selectedPurpose
       });
 
+      const lang = i18n.language || 'hi';
+      const spoken = lang === 'en'
+        ? `${selectedBorrower.name}, loan of ${principal} rupees approved`
+        : `${selectedBorrower.name} को ₹${principal} रुपये का ऋण स्वीकृत हुआ`;
+
       setTripleModal({
         isOpen: true,
         type: 'success',
         title: `${selectedBorrower.name}`,
-        spokenMessage: `${selectedBorrower.name} को ₹${principal} रुपये का ऋण स्वीकृत हुआ`,
-        details: `${tenureMonths} माह अवधि`,
+        spokenMessage: spoken,
+        details: `${tenureMonths} ${t('loans.months')}`,
         amount: principal
       });
 
@@ -144,7 +152,7 @@ export default function Loans({ group }) {
       setSelectedBorrower(null);
     } catch (err) {
       console.error(err);
-      showToast('ऋण दर्ज करने में त्रुटि', 'error');
+      showToast('Error issuing loan', 'error');
     }
   };
 
@@ -156,6 +164,7 @@ export default function Loans({ group }) {
     const split = splitRepayment(amountPaid, loan.principal, monthlyInt, loan.status === 'overdue' ? 20 : 0);
 
     try {
+      playChime('cash');
       triggerHaptic('success');
       await db.repayments.add({
         loanId: loan.id,
@@ -183,12 +192,17 @@ export default function Loans({ group }) {
         interestPaid: split.interestPaid
       });
 
+      const lang = i18n.language || 'hi';
+      const spoken = lang === 'en'
+        ? `${borrower.name}, installment ${amountPaid} rupees deposited`
+        : `${borrower.name}, किस्त ₹${amountPaid} रुपये जमा`;
+
       setTripleModal({
         isOpen: true,
         type: 'success',
         title: `${borrower.name}`,
-        spokenMessage: `${borrower.name}, किस्त ₹${amountPaid} रुपये जमा`,
-        details: `मूलधन: ₹${split.principalPaid} • ब्याज: ₹${split.interestPaid}`,
+        spokenMessage: spoken,
+        details: `${t('loans.balance_principal')}: ₹${split.principalPaid} • ${t('loans.monthly_interest')}: ₹${split.interestPaid}`,
         amount: amountPaid
       });
 
@@ -196,11 +210,12 @@ export default function Loans({ group }) {
       await loadAllLoanData();
     } catch (err) {
       console.error(err);
-      showToast('किस्त दर्ज करने में त्रुटि', 'error');
+      showToast('Error recording repayment', 'error');
     }
   };
 
   const handleSendSms = (loan) => {
+    playChime('tap');
     triggerHaptic('tap');
     const borrower = membersMap[loan.memberId];
     if (!borrower) return;
@@ -215,7 +230,7 @@ export default function Loans({ group }) {
     });
 
     sendSmsNotification(borrower.phone, msg);
-    showToast(`SMS लिंक तैयार: ${borrower.name}`, 'info');
+    showToast(`${t('home.sms_link_ready')}: ${borrower.name}`, 'info');
   };
 
   return (
@@ -225,21 +240,21 @@ export default function Loans({ group }) {
         <div className="flex bg-slate-200/80 p-1 rounded-xl">
           <button
             type="button"
-            onClick={() => setActiveView('list')}
+            onClick={() => { playChime('tap'); setActiveView('list'); }}
             className={`min-h-[38px] px-3.5 rounded-lg font-bold text-xs transition-all ${
               activeView === 'list' ? 'bg-[#165A3E] text-white shadow-2xs' : 'text-slate-600'
             }`}
           >
-            सक्रिय ऋण ({loans.filter(l => l.status !== 'paid').length})
+            {t('loans.active_loans')} ({loans.filter(l => l.status !== 'paid').length})
           </button>
           <button
             type="button"
-            onClick={() => setActiveView('new_loan')}
+            onClick={() => { playChime('tap'); setActiveView('new_loan'); }}
             className={`min-h-[38px] px-3.5 rounded-lg font-bold text-xs transition-all ${
               activeView === 'new_loan' ? 'bg-[#165A3E] text-white shadow-2xs' : 'text-slate-600'
             }`}
           >
-            + नया ऋण दें
+            {t('loans.give_new_loan')}
           </button>
         </div>
       </div>
@@ -247,95 +262,102 @@ export default function Loans({ group }) {
       {/* VIEW 1: ACTIVE LOANS LIST */}
       {activeView === 'list' && (
         <div className="space-y-2.5">
-          {loans.filter(l => l.status !== 'paid').map((loan) => {
-            const borrower = membersMap[loan.memberId] || { name: 'सदस्य' };
-            const isOverdue = loan.status === 'overdue';
-            const monthlyInt = calculateMonthlyInterest(loan.principal, loan.interestRate || 2);
-            const suggestedEmi = Math.round(loan.principal / (loan.tenureMonths || 4)) + monthlyInt;
-            const purposeOpt = PURPOSE_OPTIONS.find(p => p.id === loan.purpose) || PURPOSE_OPTIONS[0];
-            const PurposeIcon = purposeOpt.icon;
+          {loans.filter(l => l.status !== 'paid').length === 0 ? (
+            <div className="p-8 text-center bg-white rounded-3xl border border-slate-200">
+              <p className="font-bold text-slate-500 text-sm">{t('meeting.no_active_loans')}</p>
+            </div>
+          ) : (
+            loans.filter(l => l.status !== 'paid').map((loan) => {
+              const borrower = membersMap[loan.memberId] || { name: 'सदस्य' };
+              const isOverdue = loan.status === 'overdue';
+              const monthlyInt = calculateMonthlyInterest(loan.principal, loan.interestRate || 2);
+              const suggestedEmi = Math.round(loan.principal / (loan.tenureMonths || 4)) + monthlyInt;
+              const purposeOpt = PURPOSE_OPTIONS.find(p => p.id === loan.purpose) || PURPOSE_OPTIONS[0];
+              const PurposeIcon = purposeOpt.icon;
 
-            return (
-              <div
-                key={loan.id}
-                className={`bg-white rounded-2xl p-4 border transition-all ${
-                  isOverdue ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3 mb-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-11 h-11 rounded-full flex items-center justify-center font-black text-white text-sm shadow-xs"
-                      style={{ backgroundColor: borrower.avatarColor || '#165A3E' }}
-                    >
-                      {borrower.name.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-base text-slate-800 leading-tight">
-                        {borrower.name}
-                      </h4>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${purposeOpt.color}`}>
-                          <PurposeIcon className="w-3 h-3" />
-                          <span>{t(purposeOpt.labelKey)}</span>
-                        </span>
-                        <span className="text-[11px] text-slate-400 font-medium">
-                          {loan.tenureMonths} माह
-                        </span>
+              return (
+                <div
+                  key={loan.id}
+                  className={`bg-white rounded-2xl p-3.5 sm:p-4 border transition-all ${
+                    isOverdue ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center font-black text-white text-sm shadow-xs flex-shrink-0"
+                        style={{ backgroundColor: borrower.avatarColor || '#165A3E' }}
+                      >
+                        {borrower.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm sm:text-base text-slate-800 leading-tight">
+                          {borrower.name}
+                        </h4>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${purposeOpt.color}`}>
+                            <PurposeIcon className="w-3 h-3" />
+                            <span>{t(purposeOpt.labelKey)}</span>
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            {loan.tenureMonths} {t('loans.months')}
+                          </span>
+                        </div>
                       </div>
                     </div>
+
+                    <span
+                      className={`text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full uppercase flex-shrink-0 ${
+                        isOverdue ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
+                      }`}
+                    >
+                      {isOverdue ? t('loans.overdue_badge') : t('loans.active_badge')}
+                    </span>
                   </div>
 
-                  <span
-                    className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
-                      isOverdue ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
-                    }`}
-                  >
-                    {isOverdue ? t('loans.overdue_badge') : t('loans.active_badge')}
-                  </span>
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2 bg-slate-50 rounded-xl p-2 sm:p-2.5 my-2.5 text-center">
+                    <div>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 block truncate">{t('loans.balance_principal')}</span>
+                      <span className="text-xs sm:text-sm font-black text-slate-900">₹{loan.principal}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 block truncate">{t('loans.monthly_interest')}</span>
+                      <span className="text-xs sm:text-sm font-black text-emerald-800">₹{monthlyInt}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 block truncate">{t('loans.due_date')}</span>
+                      <span className="text-[10px] sm:text-xs font-bold text-slate-600 truncate block">{loan.dueDate}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        playChime('tap');
+                        setRepayModal({ loan, borrower, emi: suggestedEmi });
+                        setRepayAmount(String(suggestedEmi));
+                      }}
+                      className="flex-1 min-h-[40px] rounded-xl bg-[#165A3E] hover:bg-[#124933] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                    >
+                      <HandCoins className="w-4 h-4" />
+                      <span>{t('meeting.take_emi')} (₹{suggestedEmi})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSendSms(loan)}
+                      className="min-h-[40px] px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1"
+                      title="SMS"
+                    >
+                      <Send className="w-3.5 h-3.5 text-slate-600" />
+                      <span>SMS</span>
+                    </button>
+                  </div>
                 </div>
-
-                <div className="grid grid-cols-3 gap-2 bg-slate-50 rounded-xl p-2.5 my-2.5 text-center">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 block">बकाया मूलधन</span>
-                    <span className="text-sm font-black text-slate-900">₹{loan.principal}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 block">मासिक ब्याज</span>
-                    <span className="text-sm font-black text-emerald-800">₹{monthlyInt}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 block">अंतिम तिथि</span>
-                    <span className="text-xs font-bold text-slate-600">{loan.dueDate}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRepayModal({ loan, borrower, emi: suggestedEmi });
-                      setRepayAmount(String(suggestedEmi));
-                    }}
-                    className="flex-1 min-h-[42px] rounded-xl bg-[#165A3E] hover:bg-[#124933] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
-                  >
-                    <HandCoins className="w-4 h-4" />
-                    <span>किस्त लें (₹{suggestedEmi})</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSendSms(loan)}
-                    className="min-h-[42px] px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1"
-                    title="SMS"
-                  >
-                    <Send className="w-3.5 h-3.5 text-slate-600" />
-                    <span>SMS</span>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
 
@@ -358,7 +380,7 @@ export default function Loans({ group }) {
                     avatarColor={m.avatarColor}
                     selected={isSelected}
                     status={hasOverdue ? 'overdue' : null}
-                    onClick={() => setSelectedBorrower(m)}
+                    onClick={() => { playChime('tap'); setSelectedBorrower(m); }}
                   />
                 );
               })}
@@ -379,7 +401,7 @@ export default function Loans({ group }) {
                 <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
               )}
               <span>
-                {eligibility.isEligible ? t('loans.eligibility_ok') : t('loans.eligibility_error')} (अधिकतम: ₹{eligibility.maxAmount})
+                {eligibility.isEligible ? t('loans.eligibility_ok') : t('loans.eligibility_error')} (Max: ₹{eligibility.maxAmount})
               </span>
             </div>
           )}
@@ -396,13 +418,13 @@ export default function Loans({ group }) {
                   <button
                     key={opt.id}
                     type="button"
-                    onClick={() => setSelectedPurpose(opt.id)}
+                    onClick={() => { playChime('tap'); setSelectedPurpose(opt.id); }}
                     className={`min-h-[46px] p-2.5 rounded-xl border flex items-center gap-2 transition-all text-left ${
                       isSel ? 'border-[#165A3E] bg-emerald-50 text-[#165A3E] font-bold' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span className="text-xs font-semibold">{t(opt.labelKey)}</span>
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-xs font-semibold truncate">{t(opt.labelKey)}</span>
                   </button>
                 );
               })}
@@ -417,10 +439,10 @@ export default function Loans({ group }) {
               <select
                 value={tenureMonths}
                 onChange={(e) => setTenureMonths(Number(e.target.value))}
-                className="w-full min-h-[46px] px-3 rounded-xl border border-slate-300 font-bold text-sm bg-white"
+                className="w-full min-h-[46px] px-3 rounded-xl border border-slate-300 font-bold text-xs sm:text-sm bg-white"
               >
                 {[3, 4, 5, 6, 12].map(m => (
-                  <option key={m} value={m}>{m} महीने ({m} mos)</option>
+                  <option key={m} value={m}>{m} {t('loans.months')}</option>
                 ))}
               </select>
             </div>
@@ -433,7 +455,7 @@ export default function Loans({ group }) {
                 type="number"
                 value={loanAmount}
                 onChange={(e) => setLoanAmount(e.target.value)}
-                className="w-full min-h-[46px] px-3 rounded-xl border border-slate-300 font-black text-base bg-white"
+                className="w-full min-h-[46px] px-3 rounded-xl border border-slate-300 font-black text-sm sm:text-base bg-white"
               />
             </div>
           </div>
@@ -444,7 +466,7 @@ export default function Loans({ group }) {
               disabled={!selectedBorrower || !eligibility?.isEligible}
               icon={HandCoins}
             >
-              ऋण स्वीकृत करें (Disburse)
+              {t('loans.new_loan')}
             </BigButton>
           </div>
         </div>
@@ -453,18 +475,18 @@ export default function Loans({ group }) {
       {/* Repay Modal */}
       {repayModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl">
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl safe-bottom-inset">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h4 className="font-bold text-base text-slate-800">{repayModal.borrower?.name}</h4>
-                <p className="text-xs text-slate-500 font-semibold">सुझाई गई किस्त: ₹{repayModal.emi}</p>
+                <p className="text-xs text-slate-500 font-semibold">{t('loans.loan_repayment')}: ₹{repayModal.emi}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setRepayModal(null)}
                 className="text-xs font-bold text-slate-400 p-2"
               >
-                रद्द करें
+                {t('common.cancel')}
               </button>
             </div>
 
@@ -472,7 +494,7 @@ export default function Loans({ group }) {
               value={repayAmount}
               onChange={setRepayAmount}
               onConfirm={handleConfirmRepayment}
-              confirmLabel="किस्त जमा करें"
+              confirmLabel={t('loans.repay_modal_title')}
             />
           </div>
         </div>

@@ -41,7 +41,16 @@
     "reports_tile": "Passbooks & Score",
     "quick_actions": "Quick Actions",
     "active_members": "Active Members",
-    "credit_score_badge": "SHG Credit Score"
+    "credit_score_badge": "SHG Credit Score",
+    "total_savings": "Total Savings",
+    "loans_outstanding": "Loans Outstanding",
+    "weekly_meeting": "Weekly Meeting",
+    "record_savings": "Record Savings",
+    "new_loan_emi": "New Loan & EMI",
+    "passbook_score": "Passbook & Score",
+    "overdue": "Overdue",
+    "listen": "Listen",
+    "sms_link_ready": "SMS Ready"
   },
   "meeting": {
     "step_attendance": "Attendance",
@@ -55,7 +64,19 @@
     "end_and_lock": "Finish & Lock Meeting",
     "meeting_completed": "Meeting Saved Successfully!",
     "confirm_lock_title": "Lock this Meeting?",
-    "confirm_lock_desc": "Once locked, entries cannot be changed without an audit reversal."
+    "confirm_lock_desc": "Once locked, entries cannot be changed without an audit reversal.",
+    "attendance_hint": "Tap member to mark attendance (Green = Present, Red = Absent)",
+    "mark_all_present": "All Present",
+    "total_attendance": "Total Attendance",
+    "members_count": "members",
+    "next_savings": "Record Savings →",
+    "savings_hint": "Tap member to edit or confirm weekly savings",
+    "total_saved": "Total Saved",
+    "next_repayments": "View Repayments →",
+    "repayments_hint": "Collect installments from members with active loans",
+    "no_active_loans": "No active loans pending in the group right now.",
+    "take_emi": "Collect EMI",
+    "next_summary": "Meeting Summary →"
   },
   "loans": {
     "new_loan": "Give New Loan",
@@ -75,7 +96,14 @@
     "eligibility_error": "Not Eligible: Has overdue loan or zero savings",
     "overdue_badge": "OVERDUE",
     "active_badge": "ACTIVE",
-    "paid_badge": "PAID"
+    "paid_badge": "PAID",
+    "active_loans": "Active Loans",
+    "give_new_loan": "+ Issue Loan",
+    "balance_principal": "Principal Due",
+    "monthly_interest": "Monthly Interest",
+    "due_date": "Due Date",
+    "months": "months",
+    "repay_modal_title": "Deposit Installment"
   },
   "score": {
     "title": "Group Credit Score",
@@ -98,31 +126,40 @@
     "attendance_register": "Attendance Register",
     "download_pdf": "Download PDF",
     "share": "Share",
-    "bank_qr": "Scan for Bank Officer Dashboard"
+    "bank_qr": "QR for Bank Officer Inspection",
+    "cash_book_name": "Cash Book",
+    "cash_book_desc": "Receipts & Payments",
+    "loan_reg_name": "Loan Register",
+    "loan_reg_desc": "Loans & Repayments",
+    "att_reg_name": "Attendance Register",
+    "att_reg_desc": "Weekly Roll Call",
+    "bank_officer_title": "Bank Officer Laptop View",
+    "bank_officer_desc": "Bank managers can scan this QR code to inspect verified accounts on a laptop.",
+    "open_dashboard": "Open Portal",
+    "download": "Download"
   },
   "download": {
-    "heading": "Download SakhiNidhi APK",
-    "subheading": "Install on any Android phone. 100% Free, zero data usage offline.",
+    "heading": "Download SakhiNidhi Android APK",
+    "subheading": "Works on any Android phone. 100% free, runs without internet.",
     "download_button": "Download APK (Android)",
-    "install_pwa_button": "Install as Web App",
-    "step1": "1. Download the APK file onto your phone.",
-    "step2": "2. Open the downloaded file from notifications or downloads.",
-    "step3": "3. Allow 'Install unknown apps' if prompted in settings.",
-    "step4": "4. Tap Install. Open SakhiNidhi anytime without internet!",
-    "works_offline": "100% Works Offline",
-    "free_license": "Tribe 2026 Open Source Prototype"
+    "install_pwa_button": "Install Web App (PWA)",
+    "step1": "1. Download the APK file directly to your phone.",
+    "step2": "2. Open the downloaded file.",
+    "step3": "3. Enable 'Install unknown apps' in phone Settings.",
+    "step4": "4. Tap Install and use without internet!",
+    "works_offline": "100% Offline Compatible",
+    "free_license": "Tribe 2026 Women Empowerment"
   },
   "tutorial": {
     "skip": "Skip",
     "get_started": "Get Started",
     "card1_title": "Welcome to SakhiNidhi",
-    "card1_desc": "Simple accounting for women Self-Help Groups. Works without internet.",
+    "card1_desc": "Digital accounting for Self-Help Groups. Safe and private offline.",
     "card2_title": "Voice Enabled",
-    "card2_desc": "Tap the speaker to hear anything. Speak numbers instead of typing.",
-    "card3_title": "Transparent Meetings",
-    "card3_desc": "Attendance, savings, and loans recorded with triple audio-visual confirmation.",
-    "card4_title": "Bank Ready",
-    "card4_desc": "Build a high group credit score and get bank loans easily."
+    "card2_desc": "Tap the speaker to hear numbers. Speak amounts directly with mic.",
+    "card3_title": "Triple Confirmation",
+    "card3_desc": "Attendance, savings, and loans verified with chime, screen, and vibration.",
+    "card4_title": "Bank Loan Ready",
+    "card4_desc": "Build an audited credit score and get bank loans easily."
   }
 }
-

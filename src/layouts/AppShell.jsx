@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Calendar, HandCoins, FileText, Download, Landmark, Globe, Volume2, WifiOff, Check } from 'lucide-react';
+import { Home, Calendar, HandCoins, FileText, Landmark, Globe, Volume2, WifiOff, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { changeAppLanguage } from '../i18n/i18n';
 import SpeakButton from '../components/SpeakButton';
@@ -7,7 +7,7 @@ import Toast from '../components/Toast';
 import { subscribeSyncStatus } from '../lib/sync';
 import { db } from '../lib/db';
 import { calculateFundBalance } from '../lib/finance';
-import { triggerHaptic } from '../lib/voice';
+import { triggerHaptic, playChime } from '../lib/voice';
 
 const LANGUAGES = [
   { code: 'hi', label: 'हिन्दी' },
@@ -61,15 +61,16 @@ export default function AppShell({
     { id: 'meeting', labelKey: 'nav.meeting', icon: Calendar },
     { id: 'loans', labelKey: 'nav.loans', icon: HandCoins },
     { id: 'reports', labelKey: 'nav.reports', icon: FileText },
-    { id: 'download', labelKey: 'nav.download', icon: Download },
   ];
 
   const handleNavClick = (tabId) => {
+    playChime('tap');
     triggerHaptic('tap');
     onTabChange(tabId);
   };
 
   const handleSelectLanguage = (code) => {
+    playChime('tap');
     triggerHaptic('tap');
     changeAppLanguage(code);
     setShowLangMenu(false);
@@ -165,20 +166,6 @@ export default function AppShell({
             <Landmark className="w-5 h-5 stroke-[2]" />
             <span>{t('nav.bank')}</span>
           </button>
-
-          {/* Project Website Landing Page Link */}
-          <button
-            type="button"
-            onClick={() => handleNavClick('about')}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-sm transition-all text-left mt-2 ${
-              currentTab === 'about'
-                ? 'bg-[#0E3D2A] text-white shadow-xs'
-                : 'text-emerald-200 hover:bg-emerald-900/40'
-            }`}
-          >
-            <Globe className="w-4 h-4 text-amber-300" />
-            <span>Project Website</span>
-          </button>
         </nav>
 
         {/* Footer Info */}
@@ -194,7 +181,7 @@ export default function AppShell({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 pb-24 sm:pb-28 lg:pb-8">
         {/* Mobile / Tablet Top Bar */}
-        <header className="sticky top-0 z-30 bg-white border-b border-slate-200/80 shadow-xs safe-top-inset">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs safe-top-inset">
           <div className="px-4 py-2.5 flex items-center justify-between gap-3 max-w-4xl mx-auto">
             {/* Left: Group Brand */}
             <div className="flex items-center gap-2.5 min-w-0">
@@ -219,7 +206,7 @@ export default function AppShell({
               </div>
             </div>
 
-            {/* Right: Language Pill Dropdown + About + Speaker */}
+            {/* Right: Language Pill Dropdown + Speaker */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {/* Compact Language Pill */}
               <div className="relative">
@@ -255,16 +242,6 @@ export default function AppShell({
                 )}
               </div>
 
-              {/* Quick Website pill on mobile (hidden on ultra-small screens to avoid crowding) */}
-              <button
-                type="button"
-                onClick={() => handleNavClick('about')}
-                className="hidden sm:flex h-8 px-2.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-[#165A3E] font-bold text-xs border border-emerald-200 transition-all items-center gap-1"
-                title="Project Website"
-              >
-                <span>About</span>
-              </button>
-
               <SpeakButton text={screenNarration} />
             </div>
           </div>
@@ -279,14 +256,14 @@ export default function AppShell({
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 w-full max-w-4xl mx-auto px-4 py-4 sm:py-6">
+        <main className="flex-1 w-full max-w-4xl mx-auto px-3.5 sm:px-4 py-4 sm:py-6">
           {children}
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (< 1024px) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200/90 shadow-[0_-2px_10px_rgba(0,0,0,0.04)] px-2 pt-1 pb-2 safe-bottom-inset">
-        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
+      {/* Mobile Bottom Navigation Bar (< 1024px) - 4 optimized tabs */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-2px_12px_rgba(0,0,0,0.06)] px-2 pt-1 pb-1.5 safe-bottom-inset">
+        <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = currentTab === item.id;
@@ -295,16 +272,16 @@ export default function AppShell({
                 key={item.id}
                 type="button"
                 onClick={() => handleNavClick(item.id)}
-                className={`min-h-[52px] py-1 px-1 rounded-xl flex flex-col items-center justify-center transition-all select-none touch-manipulation focus:outline-none ${
+                className={`min-h-[54px] py-1 px-1 rounded-2xl flex flex-col items-center justify-center transition-all select-none touch-manipulation focus:outline-none ${
                   active
                     ? 'text-[#165A3E] font-black'
                     : 'text-slate-400 hover:text-slate-600 font-semibold'
                 }`}
               >
-                <div className={`p-1 rounded-lg transition-colors ${active ? 'bg-emerald-100/70' : 'bg-transparent'}`}>
+                <div className={`p-1.5 rounded-xl transition-colors ${active ? 'bg-emerald-100/80' : 'bg-transparent'}`}>
                   <Icon className={`w-5 h-5 ${active ? 'stroke-[2.5] text-[#165A3E]' : 'stroke-[1.8]'}`} />
                 </div>
-                <span className="text-[10px] leading-tight text-center truncate max-w-[60px] mt-0.5">
+                <span className="text-[11px] leading-tight text-center truncate max-w-[72px] mt-0.5">
                   {t(item.labelKey)}
                 </span>
               </button>

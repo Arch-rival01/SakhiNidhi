@@ -29,12 +29,7 @@ export default function DownloadPage() {
   const handleDownloadApk = () => {
     triggerHaptic('success');
     showToast('Android APK डाउनलोड शुरू हो रहा है...', 'success');
-    const link = document.createElement('a');
-    link.href = '/downloads/sakhinidhi.apk';
-    link.setAttribute('download', 'sakhinidhi.apk');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.location.href = 'https://github.com/Arch-rival01/SakhiNidhi/releases/download/latest/SakhiNidhi.apk';
   };
 
   const handleInstallPwa = async () => {

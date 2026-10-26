@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, XCircle, Volume2 } from 'lucide-react';
-import { speak, triggerHaptic } from '../lib/voice';
+import { speak, triggerHaptic, playChime } from '../lib/voice';
 
 /**
  * TripleConfirmationModal:
  * 1. Animated green tick (or red cross)
- * 2. Spoken read-back ("Sita Hansda, savings 100 rupees")
+ * 2. Instant Web Audio cash chime + Spoken read-back ("Sita Hansda, savings 100 rupees")
  * 3. Haptic vibration feedback
  */
 export default function TripleConfirmationModal({
@@ -22,8 +22,10 @@ export default function TripleConfirmationModal({
   useEffect(() => {
     if (isOpen) {
       if (type === 'success') {
+        playChime('cash');
         triggerHaptic('success');
       } else {
+        playChime('error');
         triggerHaptic('error');
       }
 
@@ -95,4 +97,3 @@ export default function TripleConfirmationModal({
     </AnimatePresence>
   );
 }
-

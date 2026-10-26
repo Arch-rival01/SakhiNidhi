@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Delete, Mic, MicOff, RotateCcw, Volume2 } from 'lucide-react';
-import { triggerHaptic, startVoiceRecognition, speak } from '../lib/voice';
+import { triggerHaptic, startVoiceRecognition, speak, playChime } from '../lib/voice';
 import { useTranslation } from 'react-i18next';
 
 /**
@@ -22,6 +22,7 @@ export default function AmountKeypad({
   const numValue = parseInt(value, 10) || 0;
 
   const handleDigit = (digit) => {
+    playChime('tap');
     triggerHaptic('tap');
     const nextStr = value === '0' ? String(digit) : `${value}${digit}`;
     if (parseInt(nextStr, 10) <= max) {
@@ -30,17 +31,20 @@ export default function AmountKeypad({
   };
 
   const handleBackspace = () => {
+    playChime('tap');
     triggerHaptic('tap');
     onChange(value.slice(0, -1));
   };
 
   const handleClear = () => {
+    playChime('tap');
     triggerHaptic('tap');
     onChange('');
     setSpeechFeedback('');
   };
 
   const handleQuickChip = (chipAmount) => {
+    playChime('coin');
     triggerHaptic('tap');
     onChange(String(chipAmount));
   };

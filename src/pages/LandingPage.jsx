@@ -6,12 +6,7 @@ import { showToast } from '../components/Toast';
 export default function LandingPage({ onDownload, onOpenBankSecret, onPreviewApp }) {
   const handleDirectApkDownload = () => {
     showToast('Android APK पैकेज डाउनलोड हो रहा है...', 'success');
-    const link = document.createElement('a');
-    link.href = '/downloads/sakhinidhi.apk';
-    link.setAttribute('download', 'sakhinidhi.apk');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.location.href = 'https://github.com/Arch-rival01/SakhiNidhi/releases/download/latest/SakhiNidhi.apk';
   };
 
   const scrollToAbout = () => {

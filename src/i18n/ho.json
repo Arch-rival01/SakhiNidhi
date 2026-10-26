@@ -41,7 +41,16 @@
     "reports_tile": "पासबुक आर स्कोर",
     "quick_actions": "लोगोन कामी",
     "active_members": "सोहेद को",
-    "credit_score_badge": "समिति स्कोर"
+    "credit_score_badge": "समिति स्कोर",
+    "total_savings": "जमा बचत",
+    "loans_outstanding": "बाकी लोन",
+    "weekly_meeting": "हप्ता मितिंग",
+    "record_savings": "बचत टका",
+    "new_loan_emi": "नावा लोन आर किस्ती",
+    "passbook_score": "पासबुक आर स्कोर",
+    "overdue": "बाकी",
+    "listen": "आयुम",
+    "sms_link_ready": "SMS तैयार"
   },
   "meeting": {
     "step_attendance": "हाजिरी",
@@ -55,7 +64,19 @@
     "end_and_lock": "मितिंग चाबा आर लॉक",
     "meeting_completed": "मितिंग जमा होवाकना!",
     "confirm_lock_title": "मितिंग लॉक अम?",
-    "confirm_lock_desc": "लॉक केते बदलावा का होयोःआ।"
+    "confirm_lock_desc": "लॉक केते बदलावा का होयोःआ।",
+    "attendance_hint": "मेनाया ओताय मे (हरियर = मेनाया, आराः = बानूया)",
+    "mark_all_present": "सोबेन मेनाको",
+    "total_attendance": "जमा हाजिरी",
+    "members_count": "सोहेद",
+    "next_savings": "बचत माड़ांग →",
+    "savings_hint": "बचत टका बदल लागी ओताय मे",
+    "total_saved": "जमा टका",
+    "next_repayments": "लोन किस्ती माड़ांग →",
+    "repayments_hint": "लोन किस्ती जमाय मे",
+    "no_active_loans": "समिति रे लोन बाकी बानूः।",
+    "take_emi": "किस्ती इदी",
+    "next_summary": "मितिंग सारांश →"
   },
   "loans": {
     "new_loan": "नावा लोन एम",
@@ -75,7 +96,14 @@
     "eligibility_error": "का गानोःआ: बाकी मेनाः",
     "overdue_badge": "बाकी",
     "active_badge": "चालू",
-    "paid_badge": "चाबा"
+    "paid_badge": "चाबा",
+    "active_loans": "चालू लोन",
+    "give_new_loan": "+ नावा लोन एम",
+    "balance_principal": "बाकी टका",
+    "monthly_interest": "चांदो सूद",
+    "due_date": "मुचद दिन",
+    "months": "चांदो",
+    "repay_modal_title": "किस्ती जमाय"
   },
   "score": {
     "title": "समिति क्रेडिट स्कोर",
@@ -98,31 +126,40 @@
     "attendance_register": "हाजिरी खाता",
     "download_pdf": "PDF डाउनलोड",
     "share": "शेयर",
-    "bank_qr": "बैंक ऑफिसर स्कैन"
+    "bank_qr": "बैंक अफसर लागी QR",
+    "cash_book_name": "कैश बुक (Cash Book)",
+    "cash_book_desc": "जमा-खरोच हिसाब",
+    "loan_reg_name": "लोन खाता (Loan)",
+    "loan_reg_desc": "लोन किस्ती हालत",
+    "att_reg_name": "हाजिरी (Attendance)",
+    "att_reg_desc": "हप्ता हाजिरी",
+    "bank_officer_title": "बैंक अफसर लैपटॉप रे नेल",
+    "bank_officer_desc": "बैंक मैनेजर QR कोड स्कैन केते समिति रेनाः खाता नेल दड़िए-ए।",
+    "open_dashboard": "डैशबोर्ड नेल",
+    "download": "डाउनलोड"
   },
   "download": {
     "heading": "सखीनिधि Android APK डाउनलोड",
-    "subheading": "सोबेन फोन रे चालाओःआ। नेट बानूः रेयो।",
-    "download_button": "APK डाउनलोड (Android)",
+    "subheading": "जाहानाः फोन रे चालाव मे। नेट का लागावोःआ।",
+    "download_button": "APK डाउनलोड मे (Android)",
     "install_pwa_button": "वेब ऐप इंस्टॉल",
-    "step1": "1. फोन रे APK डाउनलोड एमे।",
-    "step2": "2. फ़ाइल झिज एमे।",
-    "step3": "3. 'Install unknown apps' रे हें एमे।",
-    "step4": "4. इंस्टॉल एमे आर बेभार एमे!",
-    "works_offline": "100% नेट बानूः रेयो चालाओःआ",
-    "free_license": "Tribe 2026"
+    "step1": "1. फोन रे APK फाइल डाउनलोड मे।",
+    "step2": "2. डाउनलोड फाइल झीज मे।",
+    "step3": "3. सेटिंग्स रे 'Install unknown apps' एमाय मे।",
+    "step4": "4. 'Install' ओताय मे आर बेभार मे!",
+    "works_offline": "100% बिना नेट ते चालावोःआ",
+    "free_license": "Tribe 2026 महिला शक्ति"
   },
   "tutorial": {
     "skip": "बागी",
     "get_started": "एहोब",
     "card1_title": "सखीनिधि रे जोहार",
-    "card1_desc": "महिला समिति रेनाः आलगा हिसाब। नेट बानूः रेयो।",
-    "card2_title": "काजी केते चालाओ",
-    "card2_desc": "स्पीकर ओता केते आयुम मे। काजी केतेयो ओल गानोःआ।",
+    "card1_desc": "महिला समिति रेनाः हिसाब-किताब। नेट बानूः रेहो सुरक्षित मेनाः।",
+    "card2_title": "काजी केते चालाव",
+    "card2_desc": "स्पीकर ओता केते आयुम मे। काजी केतेहो टका ओलोःआ।",
     "card3_title": "सफा मितिंग",
-    "card3_desc": "हाजिरी, बचत आर लोन रे हरियर चिन्ह नेलोःआ।",
-    "card4_title": "बैंक लोन",
-    "card4_desc": "बेस स्कोर बनाव मे आर बैंक एते आलगा ते लोन हाताओ मे।"
+    "card3_desc": "हाजिरी, बचत आर लोन रेनाः पक्का सुनाव।",
+    "card4_title": "बैंक लोन लागी तयार",
+    "card4_desc": "समिति स्कोर बनाव केते बैंक एते लोन नामोःआ।"
   }
 }
-
