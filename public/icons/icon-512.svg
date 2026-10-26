@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="100" fill="#1B6B4A"/>
+  <!-- Decorative warm sun circle -->
+  <circle cx="256" cy="190" r="85" fill="#E8892B" opacity="0.9"/>
+  <!-- Two women holding hands / SHG community symbol -->
+  <path d="M185 170 A32 32 0 1 0 185 106 A32 32 0 1 0 185 170 Z" fill="#FFF9F0"/>
+  <path d="M327 170 A32 32 0 1 0 327 106 A32 32 0 1 0 327 170 Z" fill="#FFF9F0"/>
+  <!-- Joined hands / earthen pot / treasure fund -->
+  <path d="M140 280 C140 220 235 220 256 260 C277 220 372 220 372 280 C372 360 315 390 256 390 C197 390 140 360 140 280 Z" fill="#FFF9F0"/>
+  <!-- Coin symbol in middle -->
+  <circle cx="256" cy="310" r="38" fill="#E8892B"/>
+  <text x="256" y="325" font-size="44" font-weight="bold" fill="#FFF9F0" text-anchor="middle" font-family="sans-serif">₹</text>
+  <!-- Base plant leaves / prosperity -->
+  <path d="M160 435 C200 400 240 420 256 440 C272 420 312 400 352 435 C320 450 190 450 160 435 Z" fill="#22C55E"/>
+</svg>
+

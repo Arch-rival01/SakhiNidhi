@@ -1,0 +1,44 @@
+{
+  "name": "sakhinidhi",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.3",
+    "canvas-confetti": "^1.9.4",
+    "chart.js": "^4.6.1",
+    "dexie": "^4.4.7",
+    "dexie-react-hooks": "^4.4.0",
+    "framer-motion": "^14.6.0",
+    "i18next": "^26.5.11",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
+    "lucide-react": "^1.61.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.1",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^19.3.1",
+    "react-i18next": "^17.1.9"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "adm-zip": "^0.6.1",
+    "autoprefixer": "^10.6.1",
+    "oxlint": "^1.88.0",
+    "postcss": "^8.5.31",
+    "puppeteer-core": "^25.16.0",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.3.4",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^4.1.11"
+  }
+}

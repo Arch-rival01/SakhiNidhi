@@ -1,0 +1,243 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { FileText, Download, Share2, QrCode, Award, Landmark, User, BookOpen, Calendar } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import QRCode from 'qrcode';
+import CreditGauge from '../components/CreditGauge';
+import { db } from '../lib/db';
+import { calculateFundBalance } from '../lib/finance';
+import { calculateGroupCreditScore } from '../lib/score';
+import { generateMemberPassbookPdf, generateCashBookPdf, generateLoanRegisterPdf, generateAttendanceRegisterPdf } from '../lib/pdf';
+import { showToast } from '../components/Toast';
+import { triggerHaptic } from '../lib/voice';
+
+export default function Reports({ group, onNavigate }) {
+  const { t } = useTranslation();
+  const [scoreData, setScoreData] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [selectedMemberId, setSelectedMemberId] = useState(null);
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [allData, setAllData] = useState({ meetings: [], savings: [], loans: [], repayments: [], fines: [], attendance: [] });
+
+  useEffect(() => {
+    async function loadReportsData() {
+      try {
+        const [mList, meetings, attendance, savings, loans, repayments, fines] = await Promise.all([
+          db.members.toArray(),
+          db.meetings.toArray(),
+          db.attendance.toArray(),
+          db.savings.toArray(),
+          db.loans.toArray(),
+          db.repayments.toArray(),
+          db.fines.toArray()
+        ]);
+
+        setMembers(mList);
+        if (mList.length > 0) setSelectedMemberId(mList[0].id);
+
+        setAllData({ meetings, savings, loans, repayments, fines, attendance });
+
+        const score = calculateGroupCreditScore({
+          members: mList,
+          meetings,
+          attendance,
+          savings,
+          loans,
+          repayments
+        });
+        setScoreData(score);
+
+        const bankUrl = typeof window !== 'undefined'
+          ? `${window.location.origin}/bank/${group?.id || 1}`
+          : `https://sakhinidhi.app/bank/${group?.id || 1}`;
+
+        const qr = await QRCode.toDataURL(bankUrl, { width: 150, margin: 1 });
+        setQrDataUrl(qr);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadReportsData();
+  }, [group]);
+
+  const handleDownloadPassbook = () => {
+    triggerHaptic('success');
+    const member = members.find(m => m.id === Number(selectedMemberId));
+    const mSavings = allData.savings.filter(s => s.memberId === Number(selectedMemberId));
+    const mRepayments = allData.repayments.filter(r => r.memberId === Number(selectedMemberId));
+
+    generateMemberPassbookPdf({
+      group,
+      member,
+      savings: mSavings,
+      repayments: mRepayments
+    });
+    showToast('पासबुक PDF डाउनलोड हो गया', 'success');
+  };
+
+  const handleDownloadCashBook = () => {
+    triggerHaptic('success');
+    const summary = calculateFundBalance(allData);
+    generateCashBookPdf({
+      group,
+      savings: allData.savings,
+      repayments: allData.repayments,
+      loans: allData.loans,
+      summary
+    });
+    showToast('रोकड़ बही PDF डाउनलोड हो गया', 'success');
+  };
+
+  const handleDownloadLoanRegister = () => {
+    triggerHaptic('success');
+    generateLoanRegisterPdf({
+      group,
+      loans: allData.loans,
+      members
+    });
+    showToast('ऋण पंजिका PDF डाउनलोड हो गया', 'success');
+  };
+
+  const handleDownloadAttendance = () => {
+    triggerHaptic('success');
+    generateAttendanceRegisterPdf({
+      group,
+      members,
+      meetings: allData.meetings,
+      attendance: allData.attendance
+    });
+    showToast('उपस्थिति पंजिका PDF डाउनलोड हो गया', 'success');
+  };
+
+  return (
+    <div className="space-y-4 max-w-2xl mx-auto">
+      {/* 1. Credit Score Gauge */}
+      {scoreData && <CreditGauge scoreData={scoreData} />}
+
+      {/* 2. PDF Reports */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-4">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-5 h-5 text-[#165A3E]" />
+          <h3 className="font-extrabold text-base text-slate-800">
+            {t('reports.title')}
+          </h3>
+        </div>
+
+        {/* Member Passbook */}
+        <div className="p-3.5 bg-emerald-50/50 rounded-xl border border-emerald-200/80 space-y-2.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-950">
+            <User className="w-4 h-4 text-emerald-700" />
+            <span>{t('reports.passbook')}</span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={selectedMemberId || ''}
+              onChange={(e) => setSelectedMemberId(Number(e.target.value))}
+              className="flex-1 min-h-[42px] px-3 rounded-lg border border-emerald-300 font-bold text-xs sm:text-sm text-slate-800 bg-white"
+            >
+              {members.map(m => (
+                <option key={m.id} value={m.id}>{m.name} ({m.role})</option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={handleDownloadPassbook}
+              className="min-h-[42px] px-4 rounded-lg bg-[#165A3E] hover:bg-[#124933] text-white font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>डाउनलोड</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 3 Other Registers Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          {/* Cash Book */}
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+            <div className="mb-2">
+              <FileText className="w-5 h-5 text-[#165A3E] mb-1" />
+              <div className="font-bold text-xs text-slate-800 leading-snug">रोकड़ बही (Cash Book)</div>
+              <div className="text-[10px] text-slate-500">जमा-खर्च हिसाब</div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDownloadCashBook}
+              className="w-full py-1.5 rounded-lg bg-white hover:bg-slate-100 text-[#165A3E] border border-slate-200 font-bold text-xs flex items-center justify-center gap-1"
+            >
+              <Download className="w-3 h-3" />
+              <span>PDF</span>
+            </button>
+          </div>
+
+          {/* Loan Register */}
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+            <div className="mb-2">
+              <Landmark className="w-5 h-5 text-[#E8892B] mb-1" />
+              <div className="font-bold text-xs text-slate-800 leading-snug">ऋण पंजिका (Loan)</div>
+              <div className="text-[10px] text-slate-500">ऋण व किस्त स्थिति</div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDownloadLoanRegister}
+              className="w-full py-1.5 rounded-lg bg-white hover:bg-slate-100 text-[#E8892B] border border-slate-200 font-bold text-xs flex items-center justify-center gap-1"
+            >
+              <Download className="w-3 h-3" />
+              <span>PDF</span>
+            </button>
+          </div>
+
+          {/* Attendance Register */}
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+            <div className="mb-2">
+              <Calendar className="w-5 h-5 text-blue-600 mb-1" />
+              <div className="font-bold text-xs text-slate-800 leading-snug">उपस्थिति (Attendance)</div>
+              <div className="text-[10px] text-slate-500">साप्ताहिक हाजिरी</div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDownloadAttendance}
+              className="w-full py-1.5 rounded-lg bg-white hover:bg-slate-100 text-blue-700 border border-slate-200 font-bold text-xs flex items-center justify-center gap-1"
+            >
+              <Download className="w-3 h-3" />
+              <span>PDF</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Bank QR Code Card */}
+      <div className="bg-amber-50/70 rounded-2xl p-4 border border-amber-200 shadow-2xs flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+        {qrDataUrl && (
+          <div className="bg-white p-2 rounded-xl border border-amber-200 shadow-2xs flex-shrink-0">
+            <img src={qrDataUrl} alt="Bank QR" className="w-24 h-24" />
+          </div>
+        )}
+
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md uppercase">
+            <QrCode className="w-3 h-3" />
+            <span>Bank Officer Scan</span>
+          </div>
+          <h4 className="font-bold text-sm text-slate-800">
+            बैंक अधिकारी सीधे लैपटॉप पर देखें
+          </h4>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            बैंक प्रबंधक यह QR कोड स्कैन करके लैपटॉप पर समूह का पूरा ऑडिटेड रिकॉर्ड देख सकते हैं।
+          </p>
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => onNavigate && onNavigate('bank')}
+              className="px-3.5 py-1.5 rounded-lg bg-[#165A3E] hover:bg-[#124933] text-white font-bold text-xs inline-flex items-center gap-1.5"
+            >
+              <Landmark className="w-3.5 h-3.5" />
+              <span>डैशबोर्ड खोलें</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

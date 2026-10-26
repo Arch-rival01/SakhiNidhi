@@ -1,0 +1,16 @@
+{
+  "appId": "org.sakhinidhi.app",
+  "appName": "SakhiNidhi",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#165A3E"
+    }
+  }
+}
+
