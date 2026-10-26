@@ -3,8 +3,9 @@
   "appName": "SakhiNidhi",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https",
-    "cleartext": true
+    "url": "https://sakhi-nidhi.vercel.app/app",
+    "cleartext": true,
+    "androidScheme": "https"
   },
   "plugins": {
     "SplashScreen": {
@@ -13,4 +14,3 @@
     }
   }
 }
-
