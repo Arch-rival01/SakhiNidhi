@@ -9,8 +9,8 @@ import Home from './pages/Home';
 import Meeting from './pages/Meeting';
 import Loans from './pages/Loans';
 import Reports from './pages/Reports';
+import Onboarding from './pages/Onboarding';
 import { db } from './lib/db';
-import { loadDemoData } from './lib/demoData';
 import { showToast } from './components/Toast';
 
 export default function App() {
@@ -104,20 +104,18 @@ export default function App() {
     };
   }, [currentRoute, appTab]);
 
-  // Initialize DB
+  // Initialize DB - Clean offline-first without auto-forcing demo data
   useEffect(() => {
     async function initDb() {
       try {
-        let groups = await db.groups.toArray();
-        if (groups.length === 0) {
-          await loadDemoData();
-          groups = await db.groups.toArray();
-        }
+        const groups = await db.groups.toArray();
         if (groups.length > 0) {
           setGroup(groups[0]);
+        } else {
+          setGroup(null);
         }
       } catch (err) {
-        console.error(err);
+        console.error('DB Init error:', err);
       } finally {
         setIsLoading(false);
       }
@@ -190,17 +188,39 @@ export default function App() {
 
   // 3. ANDROID APK APP UI (Loaded when user opens APK or visits /app)
   if (currentRoute === 'app') {
+    if (!group) {
+      return (
+        <Onboarding
+          onComplete={async () => {
+            const groups = await db.groups.toArray();
+            if (groups.length > 0) {
+              setGroup(groups[0]);
+            }
+          }}
+        />
+      );
+    }
+
     return (
       <AppShell
         currentTab={appTab}
         onTabChange={setAppTab}
         group={group}
+        onResetGroup={() => setGroup(null)}
         screenNarration="सखीनिधि मोबाइल ऐप।"
       >
         {appTab === 'home' && <Home group={group} onNavigate={setAppTab} />}
         {appTab === 'meeting' && <Meeting group={group} onFinish={() => setAppTab('home')} />}
         {appTab === 'loans' && <Loans group={group} />}
-        {appTab === 'reports' && <Reports group={group} onNavigate={setAppTab} />}
+        {appTab === 'reports' && (
+          <Reports
+            group={group}
+            onNavigate={setAppTab}
+            onResetGroup={async () => {
+              setGroup(null);
+            }}
+          />
+        )}
       </AppShell>
     );
   }

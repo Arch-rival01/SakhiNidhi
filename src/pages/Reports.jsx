@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Download, Share2, QrCode, Award, Landmark, User, BookOpen, Calendar } from 'lucide-react';
+import { FileText, Download, Share2, QrCode, Award, Landmark, User, BookOpen, Calendar, Database, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import QRCode from 'qrcode';
 import CreditGauge from '../components/CreditGauge';
@@ -10,14 +10,17 @@ import { calculateGroupCreditScore } from '../lib/score';
 import { generateMemberPassbookPdf, generateCashBookPdf, generateLoanRegisterPdf, generateAttendanceRegisterPdf } from '../lib/pdf';
 import { showToast } from '../components/Toast';
 import { triggerHaptic, playChime } from '../lib/voice';
+import { loadDemoData } from '../lib/demoData';
+import { syncNow } from '../lib/sync';
 
-export default function Reports({ group, onNavigate }) {
+export default function Reports({ group, onNavigate, onResetGroup }) {
   const { t } = useTranslation();
   const [scoreData, setScoreData] = useState(null);
   const [members, setMembers] = useState([]);
   const [selectedMemberId, setSelectedMemberId] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [allData, setAllData] = useState({ meetings: [], savings: [], loans: [], repayments: [], fines: [], attendance: [] });
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     async function loadReportsData() {
@@ -111,6 +114,88 @@ export default function Reports({ group, onNavigate }) {
       attendance: allData.attendance
     });
     showToast(`${t('reports.att_reg_name')} PDF ${t('common.done')}`, 'success');
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      playChime('tap');
+      triggerHaptic('tap');
+      const backupData = {
+        exportedAt: new Date().toISOString(),
+        groups: await db.groups.toArray(),
+        members: await db.members.toArray(),
+        meetings: await db.meetings.toArray(),
+        attendance: await db.attendance.toArray(),
+        savings: await db.savings.toArray(),
+        loans: await db.loans.toArray(),
+        repayments: await db.repayments.toArray(),
+        fines: await db.fines.toArray()
+      };
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sakhinidhi_backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('डेटा बैकअप डाउनलोड हो गया (Backup Downloaded)', 'success');
+      playChime('success');
+    } catch (err) {
+      showToast('बैकअप निर्यात में त्रुटि', 'error');
+    }
+  };
+
+  const handleResetData = async () => {
+    const confirmed = window.confirm('क्या आप समूह का डेटा साफ करके नया समूह बनाना चाहते हैं? (Reset all local data?)');
+    if (!confirmed) return;
+
+    try {
+      await Promise.all([
+        db.groups.clear(),
+        db.members.clear(),
+        db.meetings.clear(),
+        db.attendance.clear(),
+        db.savings.clear(),
+        db.loans.clear(),
+        db.repayments.clear(),
+        db.fines.clear(),
+        db.audit_log.clear()
+      ]);
+      playChime('success');
+      showToast('डेटा साफ कर दिया गया। नया खाता शुरू करें।', 'info');
+      if (onResetGroup) onResetGroup();
+    } catch (err) {
+      showToast('डेटा हटाने में त्रुटि', 'error');
+    }
+  };
+
+  const handleLoadDemoForTesting = async () => {
+    try {
+      await loadDemoData();
+      playChime('success');
+      showToast('डेमो डेटा लोड हो गया!', 'success');
+      window.location.reload();
+    } catch (err) {
+      showToast('डेमो लोड करने में त्रुटि', 'error');
+    }
+  };
+
+  const handleTriggerSync = async () => {
+    setIsSyncing(true);
+    playChime('tap');
+    try {
+      const res = await syncNow();
+      if (res && res.success) {
+        showToast('क्लाउड सिंक पूरा हुआ! (Cloud Synced)', 'success');
+        playChime('success');
+      } else {
+        showToast('ऑफ़लाइन सुरक्षित (डेटा डिवाइस पर सुरक्षित है)', 'info');
+      }
+    } catch (e) {
+      showToast('सिंक नोटिस: ऑफ़लाइन सुरक्षित', 'info');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (
@@ -240,6 +325,80 @@ export default function Reports({ group, onNavigate }) {
               <span>{t('reports.open_dashboard')}</span>
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* 4. Group & Database Management Card */}
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Database className="w-5 h-5 text-[#165A3E]" />
+            <h3 className="font-extrabold text-base text-slate-800">
+              समूह व डेटा प्रबंधन (Group & Data Management)
+            </h3>
+          </div>
+          <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+            Offline IndexedDB
+          </span>
+        </div>
+
+        <p className="text-xs text-slate-500 font-medium">
+          वास्तविक समूह के लिए नया खाता बनाएं, बैकअप सुरक्षित करें या टेस्ट के लिए डेमो डेटा लोड करें।
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+          {/* Export JSON Backup */}
+          <button
+            type="button"
+            onClick={handleExportBackup}
+            className="p-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-800 font-bold text-xs flex items-center justify-between transition-all active:scale-95"
+          >
+            <div className="flex items-center gap-2">
+              <Download className="w-4 h-4 text-emerald-700" />
+              <span>बैकअप डाउनलोड (Export Backup)</span>
+            </div>
+            <span className="text-[10px] text-slate-400">JSON</span>
+          </button>
+
+          {/* Cloud Sync */}
+          <button
+            type="button"
+            onClick={handleTriggerSync}
+            disabled={isSyncing}
+            className="p-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-800 font-bold text-xs flex items-center justify-between transition-all active:scale-95"
+          >
+            <div className="flex items-center gap-2">
+              <RefreshCw className={`w-4 h-4 text-blue-600 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>{isSyncing ? 'सिंक हो रहा है...' : 'क्लाउड सिंक (Cloud Sync)'}</span>
+            </div>
+            <span className="text-[10px] text-slate-400">Supabase</span>
+          </button>
+
+          {/* Reset / Create Real New Group */}
+          <button
+            type="button"
+            onClick={handleResetData}
+            className="p-3 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-700 font-bold text-xs flex items-center justify-between transition-all active:scale-95"
+          >
+            <div className="flex items-center gap-2">
+              <RotateCcw className="w-4 h-4 text-rose-600" />
+              <span>नया समूह बनाएं / डेटा साफ करें</span>
+            </div>
+            <span className="text-[10px] text-rose-500">Reset</span>
+          </button>
+
+          {/* Load Demo Data for Hackathon Test */}
+          <button
+            type="button"
+            onClick={handleLoadDemoForTesting}
+            className="p-3 rounded-xl border border-amber-300 bg-amber-50/50 hover:bg-amber-100/60 text-amber-900 font-bold text-xs flex items-center justify-between transition-all active:scale-95"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-600" />
+              <span>टेस्ट के लिए डेमो डेटा लोड करें</span>
+            </div>
+            <span className="text-[10px] text-amber-700 font-black">Demo</span>
+          </button>
         </div>
       </div>
     </div>

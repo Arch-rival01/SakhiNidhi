@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, PiggyBank, HandCoins, FileCheck, Check, ArrowRight, ArrowLeft, Lock, Volume2, Plus, Sparkles } from 'lucide-react';
+import { Users, PiggyBank, HandCoins, FileCheck, Check, ArrowRight, ArrowLeft, Lock, Volume2, Plus, Sparkles, Mic, MicOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import StepBar from '../components/StepBar';
 import MemberAvatar from '../components/MemberAvatar';
@@ -11,7 +11,7 @@ import TripleConfirmationModal from '../components/TripleConfirmationModal';
 import { db, logAudit } from '../lib/db';
 import { calculateLoanEligibility, splitRepayment, calculateMonthlyInterest } from '../lib/finance';
 import { showToast } from '../components/Toast';
-import { triggerHaptic, speak, playChime } from '../lib/voice';
+import { triggerHaptic, speak, playChime, startVoiceRecognition, parseMeetingVoiceCommand } from '../lib/voice';
 import confetti from 'canvas-confetti';
 
 export default function Meeting({ group, onFinish }) {
@@ -40,6 +40,10 @@ export default function Meeting({ group, onFinish }) {
   // Lock confirmation dialog
   const [showLockDialog, setShowLockDialog] = useState(false);
 
+  // Live Speech Command State
+  const [isListening, setIsListening] = useState(false);
+  const [voiceFeedback, setVoiceFeedback] = useState('');
+
   useEffect(() => {
     async function loadData() {
       const [allMembers, allLoans] = await Promise.all([
@@ -66,7 +70,7 @@ export default function Meeting({ group, onFinish }) {
     setAttendanceMap(prev => {
       const current = prev[memberId];
       const next = current === 'present' ? 'absent' : 'present';
-      playChime(next === 'present' ? 'tap' : 'tap');
+      playChime('tap');
       triggerHaptic('tap');
       return { ...prev, [memberId]: next };
     });
@@ -90,6 +94,87 @@ export default function Meeting({ group, onFinish }) {
       currentAmount: String(savingsMap[member.id] || group?.weeklySaving || 100)
     });
     setKeypadAmount(String(savingsMap[member.id] || group?.weeklySaving || 100));
+  };
+
+  // Set default saving for all present members
+  const handleSetAllDefaultSavings = () => {
+    const def = group?.weeklySaving || 100;
+    playChime('cash');
+    triggerHaptic('success');
+    const updated = { ...savingsMap };
+    members.forEach(m => {
+      if (attendanceMap[m.id] === 'present') {
+        updated[m.id] = def;
+      }
+    });
+    setSavingsMap(updated);
+    showToast(`सभी उपस्थित सदस्यों की ₹${def} बचत तय की गई`, 'success');
+    speak(`सभी उपस्थित सदस्यों की ${def} रुपये बचत तय की गई`);
+  };
+
+  // Voice Command Action Processor
+  const handleStartVoiceCommand = () => {
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    setIsListening(true);
+    setVoiceFeedback('सुन रहे हैं... (Listening)');
+    playChime('tap');
+    triggerHaptic('tap');
+
+    startVoiceRecognition({
+      lang: i18n.language === 'en' ? 'en-IN' : 'hi-IN',
+      onResult: ({ transcript }) => {
+        setIsListening(false);
+        const command = parseMeetingVoiceCommand(transcript, members);
+
+        if (command.type === 'ALL_PRESENT') {
+          handleMarkAllPresent();
+          setVoiceFeedback(`पहचाना: 'सभी उपस्थित' ✅`);
+          speak(command.spokenFeedback || 'सभी सदस्य उपस्थित दर्ज');
+        } else if (command.type === 'MEMBER_ATTENDANCE') {
+          const m = command.member;
+          setAttendanceMap(prev => ({ ...prev, [m.id]: command.status }));
+          playChime('tap');
+          triggerHaptic('tap');
+          setVoiceFeedback(`पहचाना: ${m.name} ${command.status === 'present' ? 'उपस्थित' : 'अनुपस्थित'} ✅`);
+          speak(command.spokenFeedback);
+        } else if (command.type === 'RECORD_SAVING') {
+          const m = command.member;
+          const amt = command.amount;
+          setAttendanceMap(prev => ({ ...prev, [m.id]: 'present' }));
+          setSavingsMap(prev => ({ ...prev, [m.id]: amt }));
+          playChime('cash');
+          triggerHaptic('success');
+          setVoiceFeedback(`पहचाना: ${m.name} ₹${amt} बचत ✅`);
+          speak(command.spokenFeedback || `${m.name} की बचत ${amt} रुपये दर्ज`);
+          showToast(`${m.name}: ₹${amt} बचत दर्ज`, 'success');
+        } else if (command.type === 'NEXT_STEP') {
+          setCurrentStep(prev => Math.min(prev + 1, 4));
+          playChime('tap');
+          setVoiceFeedback('अगला कदम ▶');
+        } else if (command.type === 'PREV_STEP') {
+          setCurrentStep(prev => Math.max(prev - 1, 1));
+          playChime('tap');
+          setVoiceFeedback('पिछला कदम ◀');
+        } else if (command.type === 'LOCK_MEETING') {
+          setShowLockDialog(true);
+        } else {
+          setVoiceFeedback(`'${transcript}' नहीं समझा। नाम व राशि बोलें जैसे 'सीता 100'`);
+          triggerHaptic('error');
+          playChime('error');
+        }
+      },
+      onError: () => {
+        setIsListening(false);
+        setVoiceFeedback('माइक शुरू नहीं हुआ, बटन से दर्ज करें');
+      },
+      onEnd: () => {
+        setIsListening(false);
+      }
+    });
   };
 
   const handleConfirmSaving = (amt) => {
@@ -269,6 +354,49 @@ export default function Meeting({ group, onFinish }) {
         onStepClick={(stepId) => goToStep(stepId)}
       />
 
+      {/* Voice Action Bar (Universal voice command input for Meeting) */}
+      <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-300/80 rounded-2xl p-3 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <button
+            type="button"
+            onClick={handleStartVoiceCommand}
+            className={`min-h-[44px] px-3.5 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-xs flex-shrink-0 ${
+              isListening
+                ? 'bg-rose-600 hover:bg-rose-700 text-white animate-pulse ring-4 ring-rose-200'
+                : 'bg-[#165A3E] hover:bg-[#124933] text-white active:scale-95'
+            }`}
+          >
+            {isListening ? (
+              <>
+                <Mic className="w-4 h-4 animate-bounce text-white" />
+                <span>सुन रहे हैं... (Listening)</span>
+              </>
+            ) : (
+              <>
+                <Mic className="w-4 h-4 text-amber-300" />
+                <span>बोलकर काम करें (Voice Action)</span>
+              </>
+            )}
+          </button>
+
+          <div className="text-[11px] sm:text-xs text-slate-700 font-bold truncate">
+            {voiceFeedback ? (
+              <span className="text-emerald-800 font-extrabold">{voiceFeedback}</span>
+            ) : currentStep === 1 ? (
+              <span className="text-slate-600">बोलें: <span className="text-emerald-800 font-extrabold">"सब उपस्थित"</span> या <span className="text-emerald-800 font-extrabold">"सीता उपस्थित"</span></span>
+            ) : (
+              <span className="text-slate-600">बोलें: <span className="text-emerald-800 font-extrabold">"सीता 100"</span> या <span className="text-emerald-800 font-extrabold">"पार्वती 50"</span></span>
+            )}
+          </div>
+        </div>
+
+        {isListening && (
+          <span className="text-[11px] font-bold text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full animate-pulse self-start sm:self-auto">
+            LIVE MIC
+          </span>
+        )}
+      </div>
+
       {/* STEP 1: ATTENDANCE */}
       {currentStep === 1 && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
@@ -284,7 +412,7 @@ export default function Meeting({ group, onFinish }) {
             <button
               type="button"
               onClick={handleMarkAllPresent}
-              className="text-xs font-bold text-[#165A3E] bg-[#165A3E]/10 px-3 py-1.5 rounded-full hover:bg-[#165A3E]/20 flex-shrink-0"
+              className="text-xs font-bold text-[#165A3E] bg-[#165A3E]/10 hover:bg-[#165A3E]/20 px-3.5 py-2 rounded-xl transition-all flex-shrink-0 active:scale-95 border border-emerald-300/40"
             >
               {t('meeting.mark_all_present')}
             </button>
@@ -297,17 +425,18 @@ export default function Meeting({ group, onFinish }) {
             </span>
           </div>
 
-          {/* Member Avatars Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+          {/* Member Avatars Grid - Optimized Responsive Media Queries */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3">
             {members.map((m) => (
-              <MemberAvatar
-                key={m.id}
-                name={m.name}
-                role={m.role}
-                avatarColor={m.avatarColor}
-                status={attendanceMap[m.id]}
-                onClick={() => toggleAttendance(m.id)}
-              />
+              <div key={m.id} className="w-full flex">
+                <MemberAvatar
+                  name={m.name}
+                  role={m.role}
+                  avatarColor={m.avatarColor}
+                  status={attendanceMap[m.id]}
+                  onClick={() => toggleAttendance(m.id)}
+                />
+              </div>
             ))}
           </div>
 
@@ -322,7 +451,7 @@ export default function Meeting({ group, onFinish }) {
       {/* STEP 2: MEMBER SAVINGS */}
       {currentStep === 2 && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h3 className="font-extrabold text-xl sm:text-2xl text-slate-800">
                 2. {t('meeting.step_savings')}
@@ -331,18 +460,28 @@ export default function Meeting({ group, onFinish }) {
                 {t('meeting.savings_hint')}
               </p>
             </div>
-            <div className="text-right flex-shrink-0">
-              <span className="text-xs font-bold text-slate-500">{t('meeting.total_saved')}</span>
-              <div className="text-xl font-black text-emerald-800">₹{totalSavingsToday}</div>
+            <div className="flex items-center justify-between sm:justify-end gap-3 bg-white p-2.5 rounded-2xl border border-slate-200 shadow-2xs">
+              <button
+                type="button"
+                onClick={handleSetAllDefaultSavings}
+                className="text-xs font-bold text-[#165A3E] bg-[#165A3E]/10 hover:bg-[#165A3E]/20 px-3 py-1.5 rounded-xl border border-emerald-300/40 active:scale-95 transition-all"
+              >
+                सबका ₹{group?.weeklySaving || 100} तय करें
+              </button>
+              <div className="text-right flex-shrink-0 pl-2 border-l border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 uppercase">{t('meeting.total_saved')}</span>
+                <div className="text-lg sm:text-xl font-black text-emerald-800 leading-none">₹{totalSavingsToday}</div>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+          {/* Member Savings Cards Grid - Optimized Media Queries */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3">
             {members.map((m) => {
               const isPresent = attendanceMap[m.id] === 'present';
               const amt = isPresent ? savingsMap[m.id] : 0;
               return (
-                <div key={m.id} className={!isPresent ? 'opacity-40 pointer-events-none' : ''}>
+                <div key={m.id} className={`w-full flex ${!isPresent ? 'opacity-40 pointer-events-none' : ''}`}>
                   <MemberAvatar
                     name={m.name}
                     role={m.role}

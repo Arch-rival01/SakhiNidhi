@@ -16,10 +16,10 @@ export default function Onboarding({ onComplete }) {
 
   // Form states
   const [selectedLang, setSelectedLang] = useState(i18n.language || 'hi');
-  const [groupName, setGroupName] = useState('Sakhi Mandal, Jamshedpur');
-  const [village, setVillage] = useState('Sundarnagar, East Singhbhum');
+  const [groupName, setGroupName] = useState('');
+  const [village, setVillage] = useState('');
   const [meetingDay, setMeetingDay] = useState('Thursday');
-  const [weeklySaving, setWeeklySaving] = useState(50);
+  const [weeklySaving, setWeeklySaving] = useState(100);
   const [interestRate, setInterestRate] = useState(2);
   const [lateFine, setLateFine] = useState(10);
   const [pin, setPin] = useState('1234');
@@ -27,9 +27,7 @@ export default function Onboarding({ onComplete }) {
   const [members, setMembers] = useState([
     { name: 'Sita Hansda', role: 'leader', phone: '+919835123401', avatarColor: '#1B6B4A' },
     { name: 'Parvati Murmu', role: 'treasurer', phone: '+919835123402', avatarColor: '#E8892B' },
-    { name: 'Malati Soren', role: 'member', phone: '+919835123403', avatarColor: '#2563EB' },
-    { name: 'Jasmani Mundu', role: 'member', phone: '+919835123406', avatarColor: '#059669' },
-    { name: 'Sukurmani Purty', role: 'member', phone: '+919835123407', avatarColor: '#D97706' }
+    { name: 'Malati Soren', role: 'member', phone: '+919835123403', avatarColor: '#2563EB' }
   ]);
   const [newMemberName, setNewMemberName] = useState('');
 
@@ -80,11 +78,13 @@ export default function Onboarding({ onComplete }) {
     try {
       triggerHaptic('success');
       // Save group
+      const finalGroupName = groupName.trim() || 'सखी मंडल';
+      const finalVillage = village.trim() || 'झारखंड';
       const groupId = await db.groups.add({
-        name: groupName,
-        village,
+        name: finalGroupName,
+        village: finalVillage,
         meetingDay,
-        weeklySaving: Number(weeklySaving) || 50,
+        weeklySaving: Number(weeklySaving) || 100,
         interestRate: Number(interestRate) || 2,
         lateFine: Number(lateFine) || 10,
         maxLoanMultiple: 3,
@@ -216,9 +216,10 @@ export default function Onboarding({ onComplete }) {
                 </label>
                 <input
                   type="text"
+                  placeholder="उदा. जय माँ सरना सखी मंडल"
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
-                  className="w-full min-h-[52px] px-4 rounded-2xl border-2 border-slate-300 font-bold text-lg focus:border-[#1B6B4A] bg-white"
+                  className="w-full min-h-[52px] px-4 rounded-2xl border-2 border-slate-300 font-bold text-base sm:text-lg focus:border-[#1B6B4A] bg-white"
                 />
               </div>
 
@@ -228,9 +229,10 @@ export default function Onboarding({ onComplete }) {
                 </label>
                 <input
                   type="text"
+                  placeholder="उदा. सुंदरनगर, पूर्वी सिंहभूम"
                   value={village}
                   onChange={(e) => setVillage(e.target.value)}
-                  className="w-full min-h-[52px] px-4 rounded-2xl border-2 border-slate-300 font-bold text-lg focus:border-[#1B6B4A] bg-white"
+                  className="w-full min-h-[52px] px-4 rounded-2xl border-2 border-slate-300 font-bold text-base sm:text-lg focus:border-[#1B6B4A] bg-white"
                 />
               </div>
 
