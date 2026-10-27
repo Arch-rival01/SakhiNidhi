@@ -8,7 +8,7 @@
 import { db } from './db';
 
 export function getSupabaseConfig() {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  const envUrl = import.meta.env.VITE_SUPABASE_URL || 'https://yeqjeslifyxvnjxxkjps.supabase.co';
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
   const localUrl = typeof localStorage !== 'undefined' ? (localStorage.getItem('sakhinidhi_supabase_url') || '') : '';
   const localKey = typeof localStorage !== 'undefined' ? (localStorage.getItem('sakhinidhi_supabase_key') || '') : '';

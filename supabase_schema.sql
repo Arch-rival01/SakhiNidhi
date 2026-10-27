@@ -115,13 +115,28 @@ ALTER TABLE public.loans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.repayments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 
--- Allow anon public operations (Read, Insert, Update) via API key
+-- Allow anon public operations (Read, Insert, Update) via API key (Idempotent: drop before create)
+DROP POLICY IF EXISTS "Allow public read-write for groups" ON public.groups;
 CREATE POLICY "Allow public read-write for groups" ON public.groups FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read-write for members" ON public.members;
 CREATE POLICY "Allow public read-write for members" ON public.members FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read-write for meetings" ON public.meetings;
 CREATE POLICY "Allow public read-write for meetings" ON public.meetings FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read-write for attendance" ON public.attendance;
 CREATE POLICY "Allow public read-write for attendance" ON public.attendance FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read-write for savings" ON public.savings;
 CREATE POLICY "Allow public read-write for savings" ON public.savings FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read-write for loans" ON public.loans;
 CREATE POLICY "Allow public read-write for loans" ON public.loans FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read-write for repayments" ON public.repayments;
 CREATE POLICY "Allow public read-write for repayments" ON public.repayments FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read-write for audit_log" ON public.audit_log;
 CREATE POLICY "Allow public read-write for audit_log" ON public.audit_log FOR ALL USING (true) WITH CHECK (true);
 
