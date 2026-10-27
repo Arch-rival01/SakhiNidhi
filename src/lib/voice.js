@@ -1,18 +1,21 @@
 /**
- * SakhiNidhi Resilient Voice Engine & Intelligent Hindi Speech Command Processor
- * - Zero-latency Web Audio chime generator with state recovery and fail-safe guards
- * - Crash-proof Text-To-Speech with persistent utterance reference (fixes Android WebView GC bug)
- * - Intelligent Voice Command Parser for Tribal SHG Accounting (names + amounts + attendance + navigation)
+ * SakhiNidhi High-Reliability Sound & Voice Engine
+ * - Instant zero-latency Web Audio soundbox synthesizer (< 5ms)
+ * - Auto-recovering AudioContext with mobile gesture unlock
+ * - Fail-safe Text-To-Speech with synchronized playback & watchdog
+ * - Spoken Amount Announcer (Soundbox style for transactions)
+ * - Intelligent Voice Command Parser for Tribal SHG Accounting
  */
 
 let cachedVoices = [];
 let audioCtx = null;
-let activeUtterance = null; // Prevent Android WebView GC bug from killing active speech
+let activeUtterance = null;
+let isAudioUnlocked = false;
 
 /**
- * Safe AudioContext singleton with automatic re-instantiation if closed/interrupted
+ * Universal Mobile AudioContext with Auto-Recovery
  */
-function getAudioContext() {
+export function getAudioContext() {
   if (typeof window === 'undefined') return null;
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) return null;
@@ -26,83 +29,162 @@ function getAudioContext() {
     }
     return audioCtx;
   } catch (err) {
-    console.warn('AudioContext init notice:', err);
+    console.warn('AudioContext notice:', err);
     return null;
   }
 }
 
 /**
- * Instant Web Audio Chime Generator (< 5ms zero latency, 100% offline, crash-proof)
- * Types: 'cash' | 'success' | 'tap' | 'error' | 'coin'
+ * Mobile Audio Hardware Unlock (Standard silent buffer technique)
+ */
+export function unlockAudio() {
+  if (isAudioUnlocked) return;
+  try {
+    const ctx = getAudioContext();
+    if (ctx) {
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      isAudioUnlocked = true;
+    }
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        cachedVoices = window.speechSynthesis.getVoices();
+        window.speechSynthesis.resume();
+      } catch {}
+    }
+  } catch (e) {
+    console.warn('Unlock audio notice:', e);
+  }
+}
+
+// Attach gesture unlock to common user interaction events
+if (typeof window !== 'undefined') {
+  const unlockEvents = ['touchstart', 'touchend', 'click', 'keydown', 'pointerdown'];
+  const handleInteraction = () => {
+    unlockAudio();
+    if (isAudioUnlocked) {
+      unlockEvents.forEach(evt => window.removeEventListener(evt, handleInteraction, { capture: true }));
+    }
+  };
+  unlockEvents.forEach(evt => window.addEventListener(evt, handleInteraction, { capture: true, passive: true }));
+
+  // Load voices asynchronously
+  if ('speechSynthesis' in window) {
+    try {
+      cachedVoices = window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        try {
+          cachedVoices = window.speechSynthesis.getVoices();
+        } catch {}
+      };
+    } catch {}
+  }
+}
+
+/**
+ * Instant Web Audio Chime Generator (< 5ms zero latency, 100% offline, loud & clear)
+ * Types: 'tap' | 'coin' | 'cash' | 'success' | 'error'
  */
 export function playChime(type = 'tap') {
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
 
-    const now = ctx.currentTime;
+    const render = () => {
+      try {
+        const now = ctx.currentTime;
 
-    if (type === 'tap') {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, now);
-      osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
-      gain.gain.setValueAtTime(0.06, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.05);
-    } else if (type === 'cash' || type === 'coin') {
-      // Pleasant dual-bell chime like a payment soundbox
-      [523.25, 659.25, 783.99].forEach((freq, i) => {
-        try {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(freq, now + i * 0.08);
-          gain.gain.setValueAtTime(0, now + i * 0.08);
-          gain.gain.linearRampToValueAtTime(0.18, now + i * 0.08 + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.35);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now + i * 0.08);
-          osc.stop(now + i * 0.08 + 0.36);
-        } catch {}
-      });
-    } else if (type === 'success') {
-      // Upward cheerful 3-tone arpeggio
-      [440, 554.37, 659.25].forEach((freq, i) => {
-        try {
+        if (type === 'tap') {
+          // Clean, snappy tactile click
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, now + i * 0.09);
-          gain.gain.setValueAtTime(0.15, now + i * 0.09);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.25);
+          osc.frequency.setValueAtTime(880, now);
+          osc.frequency.exponentialRampToValueAtTime(440, now + 0.05);
+          gain.gain.setValueAtTime(0.20, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
           osc.connect(gain);
           gain.connect(ctx.destination);
-          osc.start(now + i * 0.09);
-          osc.stop(now + i * 0.09 + 0.26);
-        } catch {}
-      });
-    } else if (type === 'error') {
-      // Low dual warning buzz
-      [220, 207].forEach((freq, i) => {
-        try {
+          osc.start(now);
+          osc.stop(now + 0.05);
+        } else if (type === 'coin') {
+          // Bright metallic coin ping (E6 - 1318 Hz)
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(freq, now + i * 0.12);
-          gain.gain.setValueAtTime(0.12, now + i * 0.12);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.18);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(1318.51, now);
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.30, now + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
           osc.connect(gain);
           gain.connect(ctx.destination);
-          osc.start(now + i * 0.12);
-          osc.stop(now + i * 0.12 + 0.19);
-        } catch {}
-      });
+          osc.start(now);
+          osc.stop(now + 0.29);
+        } else if (type === 'cash') {
+          // Melodic 4-note payment soundbox chime (C5, E5, G5, C6)
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            const t = now + i * 0.075;
+            osc.frequency.setValueAtTime(freq, t);
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.32, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.39);
+          });
+        } else if (type === 'success') {
+          // Ascending 3-tone cheerful arpeggio (A4, C#5, E5)
+          const notes = [440, 554.37, 659.25, 880];
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            const t = now + i * 0.07;
+            osc.frequency.setValueAtTime(freq, t);
+            gain.gain.setValueAtTime(0.24, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.26);
+          });
+        } else if (type === 'error') {
+          // Low warning alert tone
+          [240, 180].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            const t = now + i * 0.12;
+            osc.frequency.setValueAtTime(freq, t);
+            gain.gain.setValueAtTime(0.20, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.19);
+          });
+        }
+      } catch (e) {
+        console.warn('Chime render error:', e);
+      }
+    };
+
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(render).catch(() => {});
+    } else {
+      render();
     }
   } catch (err) {
     console.warn('Audio chime notice:', err);
@@ -110,28 +192,10 @@ export function playChime(type = 'tap') {
 }
 
 /**
- * Pre-warm audio and speech synthesis on first user interaction
+ * Backward compatibility alias
  */
 export function warmUpAudio() {
-  getAudioContext();
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    try {
-      cachedVoices = window.speechSynthesis.getVoices();
-      if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = () => {
-          try {
-            cachedVoices = window.speechSynthesis.getVoices();
-          } catch {}
-        };
-      }
-      window.speechSynthesis.resume();
-    } catch {}
-  }
-}
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('touchstart', warmUpAudio, { once: true, passive: true });
-  window.addEventListener('click', warmUpAudio, { once: true, passive: true });
+  unlockAudio();
 }
 
 /**
@@ -350,10 +414,21 @@ export function parseMeetingVoiceCommand(spokenText, members = []) {
 }
 
 /**
- * Text-to-speech speaker helper with Android WebView GC protection & watchdog
+ * High-Reliability Text-To-Speech with Mobile Fallback & Android WebView GC Protection
  */
 export async function speak(text, options = {}) {
   const { lang = 'hi-IN', rate = 1.0, onEnd } = options;
+
+  if (!text) {
+    if (onEnd) onEnd();
+    return;
+  }
+
+  // Ensure AudioContext is warm
+  unlockAudio();
+
+  // Play an instant soundbox chime alongside spoken text so feedback is 100% audible immediately
+  playChime('tap');
 
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     if (onEnd) onEnd();
@@ -364,27 +439,55 @@ export async function speak(text, options = {}) {
     // Cancel any previous speech
     try {
       window.speechSynthesis.cancel();
+      window.speechSynthesis.resume();
     } catch {}
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
+    const utterance = new SpeechSynthesisUtterance(String(text));
     utterance.rate = rate;
     utterance.pitch = 1.0;
 
     // Retain global reference so Android WebView GC doesn't abort speech mid-sentence
     activeUtterance = utterance;
 
-    // Use cached voices or query
-    const voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
-    if (voices && voices.length > 0) {
-      const targetLangPrefix = lang.split('-')[0];
-      const match = voices.find(v => v.lang.startsWith(targetLangPrefix)) ||
-                    voices.find(v => v.lang.includes('IN')) ||
-                    voices[0];
-      if (match) utterance.voice = match;
+    // Find best available matching voice
+    let voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) {
+      try {
+        cachedVoices = window.speechSynthesis.getVoices();
+        voices = cachedVoices;
+      } catch {}
     }
 
+    let selectedVoice = null;
+    let targetLang = lang;
+
+    if (voices && voices.length > 0) {
+      const targetPrefix = lang.split('-')[0].toLowerCase();
+      const matchHindi = voices.find(v => v.lang.toLowerCase().startsWith('hi'));
+      const matchIndian = voices.find(v => v.lang.toLowerCase().includes('in'));
+      const defaultVoice = voices.find(v => v.default) || voices[0];
+
+      if (targetPrefix === 'hi' && matchHindi) {
+        selectedVoice = matchHindi;
+        targetLang = matchHindi.lang;
+      } else if (matchIndian) {
+        selectedVoice = matchIndian;
+        targetLang = matchIndian.lang;
+      } else if (defaultVoice) {
+        selectedVoice = defaultVoice;
+        targetLang = defaultVoice.lang;
+      }
+    }
+
+    utterance.lang = targetLang;
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+
+    let finished = false;
     const cleanup = () => {
+      if (finished) return;
+      finished = true;
       activeUtterance = null;
       if (onEnd) {
         try { onEnd(); } catch {}
@@ -392,23 +495,38 @@ export async function speak(text, options = {}) {
     };
 
     utterance.onend = cleanup;
-    utterance.onerror = cleanup;
+    utterance.onerror = (e) => {
+      console.warn('SpeechSynthesis notice:', e);
+      cleanup();
+    };
 
-    // Tiny 40ms timeout ensures Android WebView speech engine cleans up previously canceled speech
+    // Watchdog timer: on Android WebView, if onend never fires, ensure UI is unblocked
+    const watchdogDuration = Math.max(3000, String(text).length * 150);
     setTimeout(() => {
-      try {
-        window.speechSynthesis.resume();
-        window.speechSynthesis.speak(utterance);
-      } catch (e) {
-        console.warn('TTS speak notice:', e);
+      if (!finished) {
         cleanup();
       }
-    }, 40);
+    }, watchdogDuration);
+
+    // Call synchronously inside user gesture call stack
+    window.speechSynthesis.speak(utterance);
   } catch (err) {
     console.warn('Speech synthesis notice:', err);
     activeUtterance = null;
     if (onEnd) onEnd();
   }
+}
+
+/**
+ * Spoken Amount Announcer (Paytm / Soundbox style)
+ * e.g. speakAmount(100) -> plays 'cash' chime and announces "100 रुपये"
+ */
+export function speakAmount(amount, prefix = '') {
+  playChime('cash');
+  triggerHaptic('success');
+  const num = Number(amount) || 0;
+  const spoken = prefix ? `${prefix} ${num} रुपये` : `${num} रुपये`;
+  speak(spoken);
 }
 
 /**

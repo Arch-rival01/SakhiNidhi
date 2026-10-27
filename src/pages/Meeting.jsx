@@ -187,6 +187,11 @@ export default function Meeting({ group, onFinish }) {
       ? `${member.name}, savings ${amt} rupees recorded`
       : `${member.name}, बचत ${amt} रुपये जमा हुए`;
 
+    // Direct synchronous execution on button click
+    playChime('cash');
+    triggerHaptic('success');
+    speak(spoken);
+
     setTripleModal({
       isOpen: true,
       type: 'success',
@@ -235,6 +240,11 @@ export default function Meeting({ group, onFinish }) {
     const spoken = lang === 'en'
       ? `${member.name}, loan repayment ${amt} rupees recorded`
       : `${member.name}, किस्त ${amt} रुपये जमा हुई`;
+
+    // Direct synchronous execution on button click
+    playChime('cash');
+    triggerHaptic('success');
+    speak(spoken);
 
     setTripleModal({
       isOpen: true,

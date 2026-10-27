@@ -47,6 +47,7 @@ export default function AmountKeypad({
     playChime('coin');
     triggerHaptic('tap');
     onChange(String(chipAmount));
+    speak(`${chipAmount} रुपये`);
   };
 
   // Convert amount to simple words
@@ -60,6 +61,13 @@ export default function AmountKeypad({
     if (num === 2000) return 'दो हज़ार रुपये (Two Thousand)';
     if (num === 5000) return 'पाँच हज़ार रुपये (Five Thousand)';
     return `${num} रुपये (${num} Rupees)`;
+  };
+
+  const handleSpeakCurrentAmount = () => {
+    playChime('coin');
+    triggerHaptic('tap');
+    const msg = numValue > 0 ? `${numValue} रुपये` : 'शून्य रुपये';
+    speak(msg);
   };
 
   const handleMicToggle = () => {
@@ -105,9 +113,17 @@ export default function AmountKeypad({
         <div className="text-sm font-semibold text-slate-500 mb-1">
           दर्ज राशि (Entered Amount)
         </div>
-        <div className="flex items-center justify-center gap-1 text-4xl sm:text-5xl font-black text-emerald-900 tracking-tight">
+        <div className="flex items-center justify-center gap-2 text-4xl sm:text-5xl font-black text-emerald-900 tracking-tight">
           <span className="text-3xl text-emerald-700 font-bold">₹</span>
           <span>{value || '0'}</span>
+          <button
+            type="button"
+            onClick={handleSpeakCurrentAmount}
+            className="p-2 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 transition-all ml-1 shadow-2xs"
+            title="राशि सुनें (Hear Amount)"
+          >
+            <Volume2 className="w-5 h-5 text-emerald-700" />
+          </button>
         </div>
         <div className="text-sm font-bold text-emerald-800 mt-1 min-h-[22px]">
           {getAmountInWords(numValue)}

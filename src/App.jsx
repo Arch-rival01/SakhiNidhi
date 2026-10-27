@@ -201,13 +201,20 @@ export default function App() {
       );
     }
 
+    const getTabNarration = () => {
+      if (appTab === 'meeting') return 'साप्ताहिक बैठक स्क्रीन। उपस्थिति मार्क करें और सदस्यों की बचत दर्ज करें। बोलकर भी दर्ज कर सकते हैं।';
+      if (appTab === 'loans') return 'ऋण और किस्त स्क्रीन। सदस्यों के चालू ऋण और मासिक किस्तें देखें।';
+      if (appTab === 'reports') return 'रिपोर्ट और पासबुक स्क्रीन। सदस्य पासबुक, रोकड़ बही और उपस्थिति रजिस्टर डाउनलोड करें।';
+      return `सखीनिधि। ${group?.name || 'सखी मंडल'} का डिजिटल खाता। बैठक शुरू करने के लिए बैठक बटन दबाएं।`;
+    };
+
     return (
       <AppShell
         currentTab={appTab}
         onTabChange={setAppTab}
         group={group}
         onResetGroup={() => setGroup(null)}
-        screenNarration="सखीनिधि मोबाइल ऐप।"
+        screenNarration={getTabNarration()}
       >
         {appTab === 'home' && <Home group={group} onNavigate={setAppTab} />}
         {appTab === 'meeting' && <Meeting group={group} onFinish={() => setAppTab('home')} />}

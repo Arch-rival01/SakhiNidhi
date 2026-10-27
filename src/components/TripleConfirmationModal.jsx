@@ -21,29 +21,26 @@ export default function TripleConfirmationModal({
 }) {
   useEffect(() => {
     if (isOpen) {
-      if (type === 'success') {
-        playChime('cash');
-        triggerHaptic('success');
-      } else {
-        playChime('error');
-        triggerHaptic('error');
-      }
-
-      if (spokenMessage) {
-        speak(spokenMessage);
-      }
-
       const timer = setTimeout(() => {
         if (onClose) onClose();
       }, duration);
 
       return () => clearTimeout(timer);
     }
-  }, [isOpen, type, spokenMessage, duration, onClose]);
+  }, [isOpen, duration, onClose]);
 
   if (!isOpen) return null;
 
   const isSuccess = type === 'success';
+
+  const handleReplay = (e) => {
+    e.stopPropagation();
+    playChime(isSuccess ? 'cash' : 'error');
+    triggerHaptic('tap');
+    if (spokenMessage) {
+      speak(spokenMessage);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -88,10 +85,14 @@ export default function TripleConfirmationModal({
             </p>
           )}
 
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+          <button
+            type="button"
+            onClick={handleReplay}
+            className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-100/90 hover:bg-emerald-200 px-3.5 py-1.5 rounded-full transition-all active:scale-95 shadow-2xs cursor-pointer"
+          >
             <Volume2 className="w-4 h-4 text-emerald-700 animate-pulse" />
-            <span>पुष्टि बोली गई (Triple Confirmation)</span>
-          </div>
+            <span>पुष्टि दोबारा सुनें (Tap to Replay Sound)</span>
+          </button>
         </motion.div>
       </div>
     </AnimatePresence>
