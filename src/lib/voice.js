@@ -88,11 +88,135 @@ if (typeof window !== 'undefined') {
   }
 }
 
+// Pre-render PCM WAV Data URIs for bulletproof, zero-latency mobile audio playback
+function encodeWav(sampleRate, samples) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+
+  // RIFF header
+  const writeStr = (offset, str) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, samples.length * 2, true);
+
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return 'data:audio/wav;base64,' + btoa(binary);
+}
+
+function generateChimes() {
+  const rate = 22050;
+  try {
+    // 1. Tap (0.05s)
+    const tapLen = Math.floor(rate * 0.05);
+    const tapSamples = new Float32Array(tapLen);
+    for (let i = 0; i < tapLen; i++) {
+      const t = i / rate;
+      const freq = 880 - (440 * (i / tapLen));
+      tapSamples[i] = Math.sin(2 * Math.PI * freq * t) * Math.exp(-t * 40) * 0.6;
+    }
+
+    // 2. Coin (0.28s - 1318 Hz bell)
+    const coinLen = Math.floor(rate * 0.28);
+    const coinSamples = new Float32Array(coinLen);
+    for (let i = 0; i < coinLen; i++) {
+      const t = i / rate;
+      coinSamples[i] = (Math.sin(2 * Math.PI * 1318.5 * t) + 0.3 * Math.sin(2 * Math.PI * 2637 * t)) * Math.exp(-t * 12) * 0.7;
+    }
+
+    // 3. Cash / Payment Soundbox (0.42s - 4-tone chord C5, E5, G5, C6)
+    const cashLen = Math.floor(rate * 0.42);
+    const cashSamples = new Float32Array(cashLen);
+    const freqs = [523.25, 659.25, 783.99, 1046.5];
+    for (let i = 0; i < cashLen; i++) {
+      const t = i / rate;
+      let sum = 0;
+      freqs.forEach((f, idx) => {
+        const toneStart = idx * 0.07;
+        if (t >= toneStart) {
+          const toneT = t - toneStart;
+          sum += Math.sin(2 * Math.PI * f * toneT) * Math.exp(-toneT * 8);
+        }
+      });
+      cashSamples[i] = sum * 0.35;
+    }
+
+    // 4. Success (0.32s - Rising arpeggio)
+    const succLen = Math.floor(rate * 0.32);
+    const succSamples = new Float32Array(succLen);
+    const sFreqs = [440, 554.37, 659.25, 880];
+    for (let i = 0; i < succLen; i++) {
+      const t = i / rate;
+      let sum = 0;
+      sFreqs.forEach((f, idx) => {
+        const toneStart = idx * 0.07;
+        if (t >= toneStart) {
+          const toneT = t - toneStart;
+          sum += Math.sin(2 * Math.PI * f * toneT) * Math.exp(-toneT * 9);
+        }
+      });
+      succSamples[i] = sum * 0.35;
+    }
+
+    // 5. Error (0.20s - warning buzz)
+    const errLen = Math.floor(rate * 0.20);
+    const errSamples = new Float32Array(errLen);
+    for (let i = 0; i < errLen; i++) {
+      const t = i / rate;
+      errSamples[i] = (Math.sin(2 * Math.PI * 220 * t) > 0 ? 0.3 : -0.3) * Math.exp(-t * 6);
+    }
+
+    return {
+      tap: encodeWav(rate, tapSamples),
+      coin: encodeWav(rate, coinSamples),
+      cash: encodeWav(rate, cashSamples),
+      success: encodeWav(rate, succSamples),
+      error: encodeWav(rate, errSamples)
+    };
+  } catch (e) {
+    return {};
+  }
+}
+
+const wavChimes = generateChimes();
+
 /**
- * Instant Web Audio Chime Generator (< 5ms zero latency, 100% offline, loud & clear)
- * Types: 'tap' | 'coin' | 'cash' | 'success' | 'error'
+ * Instant Web Audio / HTML5 Soundbox Chime Player (< 5ms zero latency, 100% offline, loud & clear)
+ * Plays reliably on every Android WebView and mobile browser
  */
 export function playChime(type = 'tap') {
+  // 1. Instant HTML5 Audio playback (Guaranteed on Android WebView & iOS)
+  try {
+    const dataUri = wavChimes[type] || wavChimes.tap;
+    if (dataUri && typeof Audio !== 'undefined') {
+      const audio = new Audio(dataUri);
+      audio.volume = 0.95;
+      const p = audio.play();
+      if (p) p.catch(() => {});
+      return;
+    }
+  } catch {}
+
+  // 2. Fallback to Web Audio oscillator if HTML5 Audio is unavailable
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
@@ -100,85 +224,17 @@ export function playChime(type = 'tap') {
     const render = () => {
       try {
         const now = ctx.currentTime;
-
-        if (type === 'tap') {
-          // Clean, snappy tactile click
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(880, now);
-          osc.frequency.exponentialRampToValueAtTime(440, now + 0.05);
-          gain.gain.setValueAtTime(0.20, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.05);
-        } else if (type === 'coin') {
-          // Bright metallic coin ping (E6 - 1318 Hz)
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(1318.51, now);
-          gain.gain.setValueAtTime(0, now);
-          gain.gain.linearRampToValueAtTime(0.30, now + 0.015);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now);
-          osc.stop(now + 0.29);
-        } else if (type === 'cash') {
-          // Melodic 4-note payment soundbox chime (C5, E5, G5, C6)
-          const notes = [523.25, 659.25, 783.99, 1046.50];
-          notes.forEach((freq, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'triangle';
-            const t = now + i * 0.075;
-            osc.frequency.setValueAtTime(freq, t);
-            gain.gain.setValueAtTime(0, t);
-            gain.gain.linearRampToValueAtTime(0.32, t + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(t);
-            osc.stop(t + 0.39);
-          });
-        } else if (type === 'success') {
-          // Ascending 3-tone cheerful arpeggio (A4, C#5, E5)
-          const notes = [440, 554.37, 659.25, 880];
-          notes.forEach((freq, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'sine';
-            const t = now + i * 0.07;
-            osc.frequency.setValueAtTime(freq, t);
-            gain.gain.setValueAtTime(0.24, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(t);
-            osc.stop(t + 0.26);
-          });
-        } else if (type === 'error') {
-          // Low warning alert tone
-          [240, 180].forEach((freq, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'sawtooth';
-            const t = now + i * 0.12;
-            osc.frequency.setValueAtTime(freq, t);
-            gain.gain.setValueAtTime(0.20, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(t);
-            osc.stop(t + 0.19);
-          });
-        }
-      } catch (e) {
-        console.warn('Chime render error:', e);
-      }
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type === 'error' ? 'sawtooth' : 'sine';
+        osc.frequency.setValueAtTime(type === 'cash' ? 1046 : 880, now);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      } catch {}
     };
 
     if (ctx.state === 'suspended') {
@@ -186,9 +242,7 @@ export function playChime(type = 'tap') {
     } else {
       render();
     }
-  } catch (err) {
-    console.warn('Audio chime notice:', err);
-  }
+  } catch {}
 }
 
 /**

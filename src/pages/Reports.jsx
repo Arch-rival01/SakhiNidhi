@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { FileText, Download, Share2, QrCode, Award, Landmark, User, BookOpen, Calendar, Database, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FileText, Download, Share2, QrCode, Award, Landmark, User, BookOpen, Calendar, Database, RefreshCw, RotateCcw, Sparkles, Key, Check, X, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import QRCode from 'qrcode';
 import CreditGauge from '../components/CreditGauge';
@@ -11,7 +11,7 @@ import { generateMemberPassbookPdf, generateCashBookPdf, generateLoanRegisterPdf
 import { showToast } from '../components/Toast';
 import { triggerHaptic, playChime } from '../lib/voice';
 import { loadDemoData } from '../lib/demoData';
-import { syncNow } from '../lib/sync';
+import { syncNow, getSupabaseConfig, saveSupabaseConfig, isSyncConfigured } from '../lib/sync';
 
 export default function Reports({ group, onNavigate, onResetGroup }) {
   const { t } = useTranslation();
@@ -21,6 +21,17 @@ export default function Reports({ group, onNavigate, onResetGroup }) {
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [allData, setAllData] = useState({ meetings: [], savings: [], loans: [], repayments: [], fines: [], attendance: [] });
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Supabase Settings Modal State
+  const [showSupabaseModal, setShowSupabaseModal] = useState(false);
+  const [supabaseUrl, setSupabaseUrl] = useState('');
+  const [supabaseKey, setSupabaseKey] = useState('');
+
+  useEffect(() => {
+    const cfg = getSupabaseConfig();
+    setSupabaseUrl(cfg.url);
+    setSupabaseKey(cfg.key);
+  }, []);
 
   useEffect(() => {
     async function loadReportsData() {
@@ -205,6 +216,15 @@ export default function Reports({ group, onNavigate, onResetGroup }) {
     }
   };
 
+  const handleSaveSupabaseConfig = async () => {
+    playChime('tap');
+    triggerHaptic('success');
+    saveSupabaseConfig(supabaseUrl, supabaseKey);
+    setShowSupabaseModal(false);
+    showToast('Supabase डेटाबेस सेटिंग्स सहेजी गईं! सिंक शुरू हो रहा है...', 'success');
+    await handleTriggerSync();
+  };
+
   const handleTriggerSync = async () => {
     setIsSyncing(true);
     playChime('tap');
@@ -385,7 +405,22 @@ export default function Reports({ group, onNavigate, onResetGroup }) {
             <span className="text-[10px] text-slate-400">JSON</span>
           </button>
 
-          {/* Cloud Sync */}
+          {/* Cloud Sync Status & Settings Button */}
+          <button
+            type="button"
+            onClick={() => { playChime('tap'); setShowSupabaseModal(true); }}
+            className="p-3 rounded-xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/60 text-blue-900 font-bold text-xs flex items-center justify-between transition-all active:scale-95"
+          >
+            <div className="flex items-center gap-2">
+              <Key className="w-4 h-4 text-blue-600" />
+              <span>Supabase डेटाबेस सेटिंग्स (API Keys)</span>
+            </div>
+            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${isSyncConfigured() ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+              {isSyncConfigured() ? 'Connected' : 'Setup'}
+            </span>
+          </button>
+
+          {/* Cloud Sync Run */}
           <button
             type="button"
             onClick={handleTriggerSync}
@@ -394,9 +429,9 @@ export default function Reports({ group, onNavigate, onResetGroup }) {
           >
             <div className="flex items-center gap-2">
               <RefreshCw className={`w-4 h-4 text-blue-600 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>{isSyncing ? 'सिंक हो रहा है...' : 'क्लाउड सिंक (Cloud Sync)'}</span>
+              <span>{isSyncing ? 'सिंक हो रहा है...' : 'अभी सिंक करें (Sync Now)'}</span>
             </div>
-            <span className="text-[10px] text-slate-400">Supabase</span>
+            <span className="text-[10px] text-slate-400">Cloud</span>
           </button>
 
           {/* Reset / Create Real New Group */}
@@ -439,6 +474,92 @@ export default function Reports({ group, onNavigate, onResetGroup }) {
           </button>
         </div>
       </div>
+
+      {/* Supabase Database Settings Modal */}
+      <AnimatePresence>
+        {showSupabaseModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl border border-slate-200"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center font-black">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-lg text-slate-800">Supabase Cloud Sync</h3>
+                    <p className="text-xs text-slate-500 font-medium">ऑफलाइन डेटा को क्लाउड डेटाबेस से जोड़ें</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSupabaseModal(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Supabase Project URL
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="https://xyzcompany.supabase.co"
+                    value={supabaseUrl}
+                    onChange={(e) => setSupabaseUrl(e.target.value)}
+                    className="w-full min-h-[46px] px-3.5 rounded-xl border border-slate-300 font-mono text-xs focus:border-blue-600 bg-slate-50 focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Supabase Anon Public API Key
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    value={supabaseKey}
+                    onChange={(e) => setSupabaseKey(e.target.value)}
+                    className="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs focus:border-blue-600 bg-slate-50 focus:bg-white resize-none"
+                  />
+                </div>
+
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" />
+                  <span>
+                    <strong>सुरक्षित:</strong> डेटा सबसे पहले मोबाइल में ऑफलाइन IndexedDB में रहता है। नेटवर्क मिलने पर Supabase में ऑटो-सिंक हो जाता है।
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSupabaseModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-slate-200 hover:bg-slate-100 font-bold text-xs text-slate-700"
+                >
+                  रद्द करें (Cancel)
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSupabaseConfig}
+                  className="flex-1 py-3 rounded-xl bg-[#165A3E] hover:bg-[#124933] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>सहेजें और सिंक करें</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
