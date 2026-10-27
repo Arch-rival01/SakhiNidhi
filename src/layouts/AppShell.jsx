@@ -21,6 +21,7 @@ export default function AppShell({
   currentTab,
   onTabChange,
   group,
+  onResetGroup,
   screenNarration = '',
   children
 }) {
@@ -93,8 +94,19 @@ export default function AppShell({
 
         {/* Group Summary Box */}
         <div className="bg-[#0E3D2A] rounded-2xl p-4 mb-6 border border-emerald-700/50">
-          <div className="text-[10px] font-black text-amber-300 uppercase tracking-wider">
-            समूह (SHG)
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] font-black text-amber-300 uppercase tracking-wider">
+              समूह (SHG)
+            </div>
+            {onResetGroup && (
+              <button
+                type="button"
+                onClick={onResetGroup}
+                className="text-[10px] text-emerald-200 hover:text-white bg-emerald-800/80 hover:bg-emerald-700 px-2 py-0.5 rounded font-bold transition-all"
+              >
+                समूह बदलें
+              </button>
+            )}
           </div>
           <div className="text-base font-black truncate text-white mt-0.5">
             {group?.name || 'सखी मंडल, जमशेदपुर'}
@@ -199,6 +211,15 @@ export default function AppShell({
                     }`}
                     title={syncState.isOnline ? 'Online' : 'Offline Safe'}
                   />
+                  {onResetGroup && (
+                    <button
+                      type="button"
+                      onClick={onResetGroup}
+                      className="text-[9px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-1.5 py-0.5 rounded transition-all flex-shrink-0"
+                    >
+                      बदलें
+                    </button>
+                  )}
                 </div>
                 <div className="text-[11px] font-semibold text-slate-500 truncate">
                   {group?.village || 'सुंदरनगर, पूर्वी सिंहभूम'}

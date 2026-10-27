@@ -11,6 +11,7 @@ import Loans from './pages/Loans';
 import Reports from './pages/Reports';
 import Onboarding from './pages/Onboarding';
 import { db } from './lib/db';
+import { syncNow } from './lib/sync';
 import { showToast } from './components/Toast';
 
 export default function App() {
@@ -104,13 +105,18 @@ export default function App() {
     };
   }, [currentRoute, appTab]);
 
-  // Initialize DB - Clean offline-first without auto-forcing demo data
+  // Initialize DB - Clean offline-first with immediate cloud sync & selected group recovery
   useEffect(() => {
     async function initDb() {
       try {
+        // Trigger background sync with Supabase so groups formed on any phone are synced
+        await syncNow().catch(() => {});
+
         const groups = await db.groups.toArray();
         if (groups.length > 0) {
-          setGroup(groups[0]);
+          const savedId = typeof localStorage !== 'undefined' ? localStorage.getItem('sakhinidhi_selected_group_id') : null;
+          const match = groups.find(g => String(g.id) === String(savedId));
+          setGroup(match || groups[0]);
         } else {
           setGroup(null);
         }
@@ -191,7 +197,11 @@ export default function App() {
     if (!group) {
       return (
         <Onboarding
-          onComplete={async () => {
+          onComplete={async (selectedGrp) => {
+            if (selectedGrp) {
+              setGroup(selectedGrp);
+              return;
+            }
             const groups = await db.groups.toArray();
             if (groups.length > 0) {
               setGroup(groups[0]);
@@ -200,6 +210,13 @@ export default function App() {
         />
       );
     }
+
+    const handleResetGroup = () => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('sakhinidhi_selected_group_id');
+      }
+      setGroup(null);
+    };
 
     const getTabNarration = () => {
       if (appTab === 'meeting') return 'साप्ताहिक बैठक स्क्रीन। उपस्थिति मार्क करें और सदस्यों की बचत दर्ज करें। बोलकर भी दर्ज कर सकते हैं।';
@@ -213,7 +230,7 @@ export default function App() {
         currentTab={appTab}
         onTabChange={setAppTab}
         group={group}
-        onResetGroup={() => setGroup(null)}
+        onResetGroup={handleResetGroup}
         screenNarration={getTabNarration()}
       >
         {appTab === 'home' && <Home group={group} onNavigate={setAppTab} />}
@@ -223,9 +240,7 @@ export default function App() {
           <Reports
             group={group}
             onNavigate={setAppTab}
-            onResetGroup={async () => {
-              setGroup(null);
-            }}
+            onResetGroup={handleResetGroup}
           />
         )}
       </AppShell>

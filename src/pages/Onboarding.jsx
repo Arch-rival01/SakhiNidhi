@@ -1,18 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, Check, ArrowRight, ShieldCheck, Plus, Trash2, Landmark } from 'lucide-react';
+import { Sparkles, Users, Check, ArrowRight, ShieldCheck, Plus, Trash2, Landmark, ChevronRight, ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { changeAppLanguage } from '../i18n/i18n';
 import BigButton from '../components/BigButton';
 import { db, logAudit } from '../lib/db';
 import { loadDemoData } from '../lib/demoData';
+import { syncNow } from '../lib/sync';
 import { showToast } from '../components/Toast';
-import { triggerHaptic, speak } from '../lib/voice';
+import { triggerHaptic, speak, playChime } from '../lib/voice';
 
 export default function Onboarding({ onComplete }) {
   const { t, i18n } = useTranslation();
   const [step, setStep] = useState(1);
   const [isLoadingDemo, setIsLoadingDemo] = useState(false);
+  const [existingGroups, setExistingGroups] = useState([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  useEffect(() => {
+    async function fetchGroups() {
+      try {
+        setIsLoadingGroups(true);
+        // Pull groups from Supabase so groups formed on other devices show up
+        await syncNow().catch(() => {});
+        const local = await db.groups.toArray();
+        setExistingGroups(local);
+        if (local.length === 0) {
+          setShowCreateForm(true);
+        }
+      } catch (err) {
+        console.warn('Error loading groups:', err);
+      } finally {
+        setIsLoadingGroups(false);
+      }
+    }
+    fetchGroups();
+  }, []);
 
   // Form states
   const [selectedLang, setSelectedLang] = useState(i18n.language || 'hi');
@@ -74,6 +98,17 @@ export default function Onboarding({ onComplete }) {
     triggerHaptic('tap');
   };
 
+  const handlePickGroup = (grp) => {
+    playChime('cash');
+    triggerHaptic('success');
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('sakhinidhi_selected_group_id', String(grp.id));
+    }
+    showToast(`${grp.name} खोला गया`, 'success');
+    speak(`${grp.name} सखी मंडल खोला गया।`);
+    onComplete(grp);
+  };
+
   const handleFinishOnboarding = async () => {
     try {
       triggerHaptic('success');
@@ -108,9 +143,17 @@ export default function Onboarding({ onComplete }) {
       }
 
       await logAudit(groupId, 'ONBOARDING_COMPLETED', 'groups', groupId, { groupName, village, membersCount: members.length });
+      
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('sakhinidhi_selected_group_id', String(groupId));
+      }
+
+      // Immediately push to Supabase Cloud so all other phones receive it!
+      syncNow().catch(err => console.warn('Cloud sync error on onboarding:', err));
+
       showToast('समूह खाता तैयार हो गया!', 'success');
       speak('समूह खाता तैयार हो गया है।');
-      onComplete();
+      onComplete({ id: groupId, name: finalGroupName, village: finalVillage });
     } catch (err) {
       console.error(err);
       showToast('सहेजने में त्रुटि', 'error');
@@ -140,64 +183,135 @@ export default function Onboarding({ onComplete }) {
           </button>
         </div>
 
-        {/* Wizard Progress Dots */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {[1, 2, 3, 4].map((s) => (
-            <div
-              key={s}
-              className={`h-2.5 rounded-full transition-all duration-300 ${
-                step === s ? 'w-8 bg-[#1B6B4A]' : step > s ? 'w-4 bg-emerald-600' : 'w-2.5 bg-slate-300'
-              }`}
-            />
-          ))}
-        </div>
+        {/* If existing groups exist and user has not clicked 'Create New', show Samiti Selection */}
+        {existingGroups.length > 0 && !showCreateForm ? (
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            <div>
+              <h2 className="text-2xl font-black text-slate-800 mb-1">
+                सखी मंडल चुनें (Select Your Samiti)
+              </h2>
+              <p className="text-xs sm:text-sm font-semibold text-slate-500">
+                क्लाउड या फोन में दर्ज समूह। जिस समिति का काम करना है उसे चुनें:
+              </p>
+            </div>
 
-        {/* Step 1: Language */}
-        {step === 1 && (
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-            <h2 className="text-2xl font-black text-slate-800 mb-1">
-              अपनी भाषा चुनें (Select Language)
-            </h2>
-            <p className="text-sm font-semibold text-slate-500 mb-6">
-              जिसमें आप ऐप चलाना और सुनना चाहती हैं।
-            </p>
-
-            <div className="space-y-3 mb-8">
-              {[
-                { code: 'hi', title: 'हिन्दी (Hindi)', desc: 'हिंदी में चलाएं और सुनें' },
-                { code: 'sat', title: 'ᱥᱟᱱᱛᱟᱲᱤ (Santhali)', desc: 'ᱚᱞ ᱪᱤᱠᱤ ᱞᱤᱯᱤ ᱛᱮ ᱪᱟᱞᱟᱣ ᱢᱮ' },
-                { code: 'ho', title: 'ᱦᱳ (Ho)', desc: 'हो भाषा रे चलाओ मे' },
-                { code: 'mun', title: 'ᱢᱩᱱᱰᱟᱨᱤ (Mundari)', desc: 'मुण्डारी भाषा रे चलाओ मे' },
-                { code: 'en', title: 'English', desc: 'Use in English language' }
-              ].map((lang) => (
-                <button
-                  key={lang.code}
-                  type="button"
-                  onClick={() => handleLanguagePick(lang.code)}
-                  className={`w-full p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all ${
-                    selectedLang === lang.code
-                      ? 'border-[#1B6B4A] bg-[#1B6B4A]/10 ring-2 ring-[#1B6B4A]'
-                      : 'border-slate-200 bg-white hover:bg-slate-50'
-                  }`}
+            <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+              {existingGroups.map((grp) => (
+                <div
+                  key={grp.id}
+                  onClick={() => handlePickGroup(grp)}
+                  className="p-4 rounded-2xl border-2 border-emerald-500/40 bg-white hover:border-[#165A3E] hover:bg-emerald-50/50 shadow-sm transition-all cursor-pointer flex items-center justify-between gap-3 active:scale-[0.98]"
                 >
-                  <div>
-                    <div className="font-extrabold text-lg text-slate-800">{lang.title}</div>
-                    <div className="text-xs text-slate-500 font-medium">{lang.desc}</div>
-                  </div>
-                  {selectedLang === lang.code && (
-                    <div className="w-7 h-7 rounded-full bg-[#1B6B4A] text-white flex items-center justify-center">
-                      <Check className="w-4 h-4 stroke-[3]" />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-2xl bg-[#165A3E] text-white flex items-center justify-center font-black text-lg flex-shrink-0 shadow-xs">
+                      {grp.name?.charAt(0) || 'स'}
                     </div>
-                  )}
-                </button>
+                    <div className="min-w-0">
+                      <div className="font-extrabold text-base text-slate-900 truncate">
+                        {grp.name}
+                      </div>
+                      <div className="text-xs text-slate-500 font-semibold truncate flex items-center gap-2">
+                        <span>गांव: {grp.village || 'झारखंड'}</span>
+                        <span>•</span>
+                        <span className="text-emerald-700 font-bold">बैठक: {grp.meetingDay || 'Thursday'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 text-[#165A3E] font-bold text-xs bg-emerald-100/90 px-3 py-2 rounded-xl flex-shrink-0">
+                    <span>खोलें</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
               ))}
             </div>
 
-            <BigButton onClick={() => setStep(2)} icon={ArrowRight}>
-              {t('common.next')}
-            </BigButton>
+            <div className="pt-2">
+              <BigButton
+                onClick={() => {
+                  playChime('tap');
+                  setShowCreateForm(true);
+                  setStep(1);
+                }}
+                icon={Plus}
+                variant="secondary"
+              >
+                + नया सखी मंडल / समूह बनाएं
+              </BigButton>
+            </div>
           </motion.div>
-        )}
+        ) : (
+          <>
+            {/* Wizard Progress Dots */}
+            <div className="flex items-center justify-between mb-6">
+              {existingGroups.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>मौजूदा समूह देखें</span>
+                </button>
+              )}
+              <div className="flex items-center justify-center gap-2 mx-auto">
+                {[1, 2, 3, 4].map((s) => (
+                  <div
+                    key={s}
+                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                      step === s ? 'w-8 bg-[#1B6B4A]' : step > s ? 'w-4 bg-emerald-600' : 'w-2.5 bg-slate-300'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Step 1: Language */}
+            {step === 1 && (
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                <h2 className="text-2xl font-black text-slate-800 mb-1">
+                  अपनी भाषा चुनें (Select Language)
+                </h2>
+                <p className="text-sm font-semibold text-slate-500 mb-6">
+                  जिसमें आप ऐप चलाना और सुनना चाहती हैं।
+                </p>
+
+                <div className="space-y-3 mb-8">
+                  {[
+                    { code: 'hi', title: 'हिन्दी (Hindi)', desc: 'हिंदी में चलाएं और सुनें' },
+                    { code: 'sat', title: 'ᱥᱟᱱᱛᱟᱲᱤ (Santhali)', desc: 'ᱚᱞ ᱪᱤᱠᱤ ᱞᱤᱯᱤ ᱛᱮ ᱪᱟᱞᱟᱣ ᱢᱮ' },
+                    { code: 'ho', title: 'ᱦᱳ (Ho)', desc: 'हो भाषा रे चलाओ मे' },
+                    { code: 'mun', title: 'ᱢᱩᱱᱰᱟᱨᱤ (Mundari)', desc: 'मुण्डारी भाषा रे चलाओ मे' },
+                    { code: 'en', title: 'English', desc: 'Use in English language' }
+                  ].map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => handleLanguagePick(lang.code)}
+                      className={`w-full p-4 rounded-2xl border-2 text-left flex items-center justify-between transition-all ${
+                        selectedLang === lang.code
+                          ? 'border-[#1B6B4A] bg-[#1B6B4A]/10 ring-2 ring-[#1B6B4A]'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-extrabold text-lg text-slate-800">{lang.title}</div>
+                        <div className="text-xs text-slate-500 font-medium">{lang.desc}</div>
+                      </div>
+                      {selectedLang === lang.code && (
+                        <div className="w-7 h-7 rounded-full bg-[#1B6B4A] text-white flex items-center justify-center">
+                          <Check className="w-4 h-4 stroke-[3]" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                <BigButton onClick={() => setStep(2)} icon={ArrowRight}>
+                  {t('common.next')}
+                </BigButton>
+              </motion.div>
+            )}
 
         {/* Step 2: Group Details */}
         {step === 2 && (
@@ -423,6 +537,8 @@ export default function Onboarding({ onComplete }) {
               </BigButton>
             </div>
           </motion.div>
+        )}
+          </>
         )}
       </div>
 
