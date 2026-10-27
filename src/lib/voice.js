@@ -414,12 +414,43 @@ export function parseMeetingVoiceCommand(spokenText, members = []) {
 }
 
 /**
- * High-Reliability Text-To-Speech with Mobile Fallback & Android WebView GC Protection
+ * Sanitizes and adapts text for Text-to-Speech across multiple languages.
+ * Critical: Mobile TTS engines crash or stall when given unsupported Ol Chiki (Santhali),
+ * Ho, or Mundari script characters. This function ensures smooth speech without errors.
+ */
+export function sanitizeSpokenText(text, lang = 'hi') {
+  if (!text) return '';
+  let str = String(text);
+
+  // If text contains Ol Chiki script (U+1C50 to U+1C7F)
+  if (/[\u1C50-\u1C7F]/.test(str)) {
+    const numbers = str.match(/\d+/g);
+    if (numbers && numbers.length > 0) {
+      return `सखीनिधि। राशि ${numbers.join(' ')} रुपये।`;
+    }
+    return 'सखीनिधि मोबाइल रिकॉर्ड।';
+  }
+
+  // Remove markdown formatting and raw symbols that make TTS glitch
+  str = str.replace(/[*_#`~>]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  return str;
+}
+
+/**
+ * High-Reliability Text-To-Speech with Multi-Language Safety & Android WebView GC Protection
  */
 export async function speak(text, options = {}) {
   const { lang = 'hi-IN', rate = 1.0, onEnd } = options;
 
   if (!text) {
+    if (onEnd) onEnd();
+    return;
+  }
+
+  // 1. Sanitize text for multi-language safety
+  const cleanText = sanitizeSpokenText(text, lang);
+  if (!cleanText) {
     if (onEnd) onEnd();
     return;
   }
@@ -442,7 +473,7 @@ export async function speak(text, options = {}) {
       window.speechSynthesis.resume();
     } catch {}
 
-    const utterance = new SpeechSynthesisUtterance(String(text));
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.rate = rate;
     utterance.pitch = 1.0;
 
@@ -458,11 +489,15 @@ export async function speak(text, options = {}) {
       } catch {}
     }
 
+    // Determine target language:
+    // If language is tribal ('sat', 'ho', 'mun'), map to 'hi-IN' which is supported by Indian TTS engines
+    const normalizedLang = ['sat', 'ho', 'mun'].includes(lang) ? 'hi-IN' : lang;
+
     let selectedVoice = null;
-    let targetLang = lang;
+    let targetLang = normalizedLang;
 
     if (voices && voices.length > 0) {
-      const targetPrefix = lang.split('-')[0].toLowerCase();
+      const targetPrefix = normalizedLang.split('-')[0].toLowerCase();
       const matchHindi = voices.find(v => v.lang.toLowerCase().startsWith('hi'));
       const matchIndian = voices.find(v => v.lang.toLowerCase().includes('in'));
       const defaultVoice = voices.find(v => v.default) || voices[0];
@@ -501,7 +536,7 @@ export async function speak(text, options = {}) {
     };
 
     // Watchdog timer: on Android WebView, if onend never fires, ensure UI is unblocked
-    const watchdogDuration = Math.max(3000, String(text).length * 150);
+    const watchdogDuration = Math.max(3000, cleanText.length * 150);
     setTimeout(() => {
       if (!finished) {
         cleanup();

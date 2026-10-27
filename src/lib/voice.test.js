@@ -1,5 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { parseSpokenAmount, parseMeetingVoiceCommand } from './voice';
+import { parseSpokenAmount, parseMeetingVoiceCommand, sanitizeSpokenText } from './voice';
+
+describe('Multi-Language Speech Sanitizer', () => {
+  it('converts Ol Chiki text safely to prevent mobile TTS crashes', () => {
+    // Santhali text with Ol Chiki numbers
+    const olChikiSample = 'ᱜᱟᱶᱛᱟ ᱨᱮᱱᱟᱜ ᱡᱚᱛᱚ ᱴᱟᱠᱟ ᱵᱟᱠᱥᱟ 500 ᱴᱟᱠᱟ ᱢᱮᱱᱟᱜ-ᱟ';
+    const sanitized = sanitizeSpokenText(olChikiSample, 'sat');
+    expect(sanitized).toContain('500');
+    expect(sanitized).not.toMatch(/[\u1C50-\u1C7F]/);
+  });
+
+  it('preserves clean Hindi and English strings', () => {
+    expect(sanitizeSpokenText('सीता की बचत 100 रुपये दर्ज', 'hi')).toBe('सीता की बचत 100 रुपये दर्ज');
+    expect(sanitizeSpokenText('Savings 200 recorded', 'en')).toBe('Savings 200 recorded');
+  });
+});
 
 describe('Spoken Hindi/English Amount Parser', () => {
   it('parses numeric digits correctly', () => {

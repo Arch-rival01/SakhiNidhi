@@ -180,6 +180,31 @@ export default function Reports({ group, onNavigate, onResetGroup }) {
     }
   };
 
+  const handleForceUpdateApp = async () => {
+    playChime('tap');
+    showToast('नवीनतम अपडेट चेक हो रहा है... (Checking Version)', 'info');
+    try {
+      if (typeof window !== 'undefined' && 'caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) {
+          await reg.update().catch(() => {});
+          await reg.unregister().catch(() => {});
+        }
+      }
+      showToast('नया संस्करण लोड हो गया! रीलोड हो रहा है...', 'success');
+      playChime('success');
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch {
+      window.location.reload();
+    }
+  };
+
   const handleTriggerSync = async () => {
     setIsSyncing(true);
     playChime('tap');
@@ -398,6 +423,19 @@ export default function Reports({ group, onNavigate, onResetGroup }) {
               <span>टेस्ट के लिए डेमो डेटा लोड करें</span>
             </div>
             <span className="text-[10px] text-amber-700 font-black">Demo</span>
+          </button>
+
+          {/* Force App Update & Clear Cache */}
+          <button
+            type="button"
+            onClick={handleForceUpdateApp}
+            className="p-3 rounded-xl border border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100 text-[#165A3E] font-bold text-xs flex items-center justify-between transition-all active:scale-95 sm:col-span-2 shadow-2xs"
+          >
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-[#165A3E]" />
+              <span>नया अपडेट तुरंत लागू करें (Force Update App & Purge Cache)</span>
+            </div>
+            <span className="text-[10px] font-black text-emerald-800 bg-emerald-200/80 px-2 py-0.5 rounded">Sync Now</span>
           </button>
         </div>
       </div>

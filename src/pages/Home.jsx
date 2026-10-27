@@ -79,8 +79,6 @@ export default function Home({ onNavigate, group }) {
     let text = `समूह का कुल जमा कोष ${balanceData.fundBalance} रुपये है। कुल बचत ${balanceData.totalSavings} रुपये और बकाया ऋण ${balanceData.loansOutstanding} रुपये है।`;
     if (lang === 'en') {
       text = `Current group fund balance is ${balanceData.fundBalance} rupees. Total savings ${balanceData.totalSavings} rupees, and outstanding loans ${balanceData.loansOutstanding} rupees.`;
-    } else if (lang === 'sat') {
-      text = `ᱜᱟᱶᱛᱟ ᱨᱮᱱᱟᱜ ᱡᱚᱛᱚ ᱴᱟᱠᱟ ᱵᱟᱠᱥᱟ ${balanceData.fundBalance} ᱴᱟᱠᱟ ᱢᱮᱱᱟᱜ-ᱟ ᱾ ᱡᱚᱛᱚ ᱵᱟᱪᱟᱣ ${balanceData.totalSavings} ᱴᱟᱠᱟ ᱟᱨ ᱵᱟᱹᱠᱤ ᱨᱤᱬ ${balanceData.loansOutstanding} ᱴᱟᱠᱟ ᱢᱮᱱᱟᱜ-ᱟ ᱾`;
     }
     speak(text, { lang: lang === 'en' ? 'en-IN' : 'hi-IN' });
   };
